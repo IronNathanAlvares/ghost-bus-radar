@@ -62,3 +62,11 @@ A version older than the loaded history is refused unless `--rebuild` replays al
 - `stop_time` stores 7.4 M rows per version (25 MB of Parquet). Daily uploads would add about
   9 GB a year; acceptable, and deduplicating unchanged versions is possible later if needed.
 - Service days before the first archived version have no schedule (14 November 2026 here).
+
+## Update, 18 November 2026: realtime ids lag a publish
+
+Measured across four real versions: after the 15 November publish, NTA's realtime feed kept the
+previous zip's Dublin Bus trip ids for 76 minutes. "The version live at fetch time" is therefore
+refined to: the live version, or, within 3 hours of its publish, the previous version when the id
+is only there (`timetable.versions_for_realtime`, `outcomes.with_trip_version`). Ids are
+regenerated per zip, so an id found only in the previous version belongs to it.

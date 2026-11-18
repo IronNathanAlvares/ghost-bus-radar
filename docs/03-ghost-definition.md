@@ -39,6 +39,10 @@ to 35 minutes late on the first evening of data). Rules are checked in this orde
 
 ### Why these choices
 
+- **Realtime ids can lag a timetable change.** NTA's live feed kept the previous zip's trip ids
+  for 76 minutes after a publish, so a realtime id not in the live version is looked up in the
+  previous one for 3 hours after each publish. Without this, 24 trips on 15 November 2026 were
+  called ghosts or phantoms and 92 "vanished" although they ran (rules version 5).
 - **Progress from geometry.** NTA vehicle positions carry no stop sequence or stop id (0% of rows
   on 15 November 2026), so progress is the furthest stop on the trip that any position came within
   250 m of, as a share of the trip's stops.

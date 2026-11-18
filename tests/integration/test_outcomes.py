@@ -25,7 +25,7 @@ from ghostbus_core.heartbeat import Heartbeat
 from ghostbus_core.lake import LakeSettings
 from ghostbus_core.pacing import FetchStatus
 from ghostbus_ingest.archive import LocalArchive
-from ghostbus_jobs.outcomes import Sources, merge_outcomes, outcomes
+from ghostbus_jobs.outcomes import Sources, attach_instance, merge_outcomes, outcomes
 from ghostbus_jobs.spark import build_spark
 from ghostbus_jobs.stream import (
     StreamConfig,
@@ -266,3 +266,29 @@ def test_provisional_never_overwrites_final(
     merge_outcomes(spark, fake, gold)
     assert spark.table(gold).where(f"trip_instance_key = '{key}'").first()["outcome"] == "GHOST"  # type: ignore[index]
     assert spark.table(gold).count() == before
+
+
+def test_old_trip_ids_just_after_a_publish_still_find_their_trip(
+    result: tuple[SparkSession, Dim, dict[tuple[date, str], dict[str, object]]],
+) -> None:
+    """The realtime feed can keep the previous version's ids after a new timetable is published
+    (76 minutes on 15-16 Nov 2026). An old id 40 minutes after the publish must still attach to
+    its trip; 4 hours after, the grace window has ended and it must not."""
+    spark, dim, rows = result
+    expected = rows[(date(2026, 11, 16), "46A 08:00")]["trip_instance_key"]
+    rt = spark.createDataFrame(
+        [
+            ((V2_PUBLISHED + timedelta(minutes=40)).replace(tzinfo=None), "v1_0", "20261116"),
+            ((V2_PUBLISHED + timedelta(hours=4)).replace(tzinfo=None), "v1_0", "20261116"),
+            ((V2_PUBLISHED + timedelta(minutes=40)).replace(tzinfo=None), "v2_0", "20261116"),
+        ],
+        "fetched_at TIMESTAMP, trip_id STRING, start_date STRING",
+    )
+    got = {
+        (r["fetched_at"], r["trip_id"]): (r["trip_instance_key"], r["version_fallback"])
+        for r in attach_instance(rt, spark, dim).collect()
+    }
+    t40 = (V2_PUBLISHED + timedelta(minutes=40)).replace(tzinfo=None)
+    assert got[(t40, "v1_0")] == (expected, True)  # old id, inside the grace window
+    assert got[(t40, "v2_0")] == (expected, False)  # new id, as before
+    assert (V2_PUBLISHED.replace(tzinfo=None) + timedelta(hours=4), "v1_0") not in got

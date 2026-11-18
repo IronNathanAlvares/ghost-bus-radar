@@ -181,6 +181,31 @@ def version_live_at(versions: Sequence[FeedVersion], at: datetime) -> FeedVersio
     return live
 
 
+#: How long after a timetable publish the realtime feed may still use the previous version's
+#: trip ids. Measured: 76 minutes after the 15 Nov 2026 republish (measurement 02, transition).
+ID_SWITCH_GRACE = timedelta(hours=3)
+
+
+def versions_for_realtime(
+    versions: Sequence[FeedVersion], at: datetime, grace: timedelta = ID_SWITCH_GRACE
+) -> list[FeedVersion]:
+    """Versions a realtime ``trip_id`` fetched at ``at`` may belong to, most likely first.
+
+    The live version first. Within ``grace`` of its publish, also the one before it: NTA's
+    realtime feed can keep the previous zip's ids for a while after a new zip is published, and
+    ids are regenerated per zip, so an id found only in the previous version belongs to it.
+    """
+    ordered = order_versions(versions)
+    live = [i for i, v in enumerate(ordered) if v.valid_from <= at]
+    if not live:
+        return []
+    i = live[-1]
+    out = [ordered[i]]
+    if i > 0 and at < ordered[i].valid_from + grace:
+        out.append(ordered[i - 1])
+    return out
+
+
 def schedule_version_for(versions: Sequence[FeedVersion], service_date: date) -> FeedVersion | None:
     """The version whose timetable defines ``service_date``: the one live at 04:00 local that day.
 

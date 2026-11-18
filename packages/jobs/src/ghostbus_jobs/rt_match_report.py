@@ -32,6 +32,7 @@ from ghostbus_core.gtfsr import parse_feed
 from ghostbus_core.lake import LakeSettings
 from ghostbus_core.timetable import FeedVersion, version_live_at
 from ghostbus_ingest.archive import Archive, archive_from_env, decompress
+from ghostbus_jobs.outcomes import with_trip_version
 from ghostbus_jobs.spark import build_spark
 from ghostbus_jobs.timetable_load import DIM, gtfs_time_text, loaded_versions
 
@@ -102,7 +103,8 @@ def match(spark: SparkSession, rt: DataFrame) -> DataFrame:
     )
     routes = spark.table(DIM.route_version).withColumnRenamed("route_key", "rt_route_key")
     return (
-        rt.withColumn("service_date", F.to_date("start_date", "yyyyMMdd"))
+        with_trip_version(rt, spark)
+        .withColumn("service_date", F.to_date("start_date", "yyyyMMdd"))
         .join(trips, ["feed_version", "trip_id"], "left")
         .join(
             instances,
@@ -127,6 +129,7 @@ def feed_section(m: DataFrame, feed: Feed) -> str:
         F.col("trip_route_key").isNotNull() | F.col("scheduled_start_time").isNotNull()
     )
     n_matched = matched.count()
+    n_fallback = matched.where(F.col("version_fallback")).count()
     n_start_ok = matched.where(F.col("start_time") == F.col("scheduled_start_time")).count()
     n_instance = matched.where(F.col("trip_instance_key").isNotNull()).count()
     added = f.where(F.col("relationship") == "ADDED")
@@ -140,6 +143,11 @@ def feed_section(m: DataFrame, feed: Feed) -> str:
             [
                 ["Has a `trip_id` (not ADDED)", f"{n_id:,}", pct(n_id, total)],
                 ["`trip_id` found in the live version", f"{n_matched:,}", pct(n_matched, n_id)],
+                [
+                    "  of which: in the previous version, just after a publish",
+                    f"{n_fallback:,}",
+                    pct(n_fallback, n_id),
+                ],
                 ["**Unmatched `trip_id`**", f"{n_id - n_matched:,}", pct(n_id - n_matched, n_id)],
                 [
                     "`start_time` equals scheduled first departure",

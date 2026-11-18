@@ -62,7 +62,8 @@ TRACKED_ROUTE_TYPES = frozenset({"3"})
 #: Bump on any change to the rules in :func:`classify`, so stored outcomes from older rules
 #: are recognisably stale and get re-decided. 3: cancellations need vehicle coverage.
 #: 4: evidence counts only data fetched by the trip's close time.
-RULES_VERSION = 4
+#: 5: just after a timetable publish, realtime ids may belong to the previous version.
+RULES_VERSION = 5
 
 
 @dataclass(frozen=True)

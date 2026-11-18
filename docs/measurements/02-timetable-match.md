@@ -88,3 +88,27 @@ of false `GHOST`). Fix: if a `trip_id` is not in the live version, try the previ
 few hours after each publish; re-run `reconcile` for 15 and 16 November and record how many
 outcomes change.
 
+### After the fix (rules version 5, 18 November)
+
+Realtime ids now fall back to the previous version within 3 hours of a publish
+(`timetable.versions_for_realtime`, mirrored in Spark by `outcomes.with_trip_version`).
+
+| Feed | Unmatched before | Unmatched after | Matched through the previous version |
+|---|---|---|---|
+| trip_updates | 15,709 (0.96%) | **0 (0.00%)** | 15,709 |
+| vehicles | 9,008 (1.38%) | **0 (0.00%)** | 9,008 |
+
+Re-running `reconcile` for 15 to 17 November in Glue changed **275 outcomes, all on 15 November and
+all to `RAN`**: 159 from `NO_DATA`, 92 from `VANISHED`, 23 from `GHOST` and 1 from `PHANTOM_LIVE`.
+The other two days, whose timetable switches were clean, did not change at all. Compared with
+Iceberg time travel in Athena (`FOR TIMESTAMP AS OF` the moment before the re-run).
+
+On the 1,804 fully collected bus trips of 15 November:
+
+| | Ran | Untracked | Vanished |
+|---|---|---|---|
+| Before the fix | 81.9% | 9.8% | 7.0% |
+| After the fix | **88.4%** | **8.5%** | **1.9%** |
+
+Most of the "vanished" buses that evening were buses whose updates we had stopped recognising
+when NTA published new ids; 24 "ghosts" and "phantoms" had in fact run.

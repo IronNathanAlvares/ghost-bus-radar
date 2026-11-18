@@ -35,6 +35,7 @@ from ghostbus_core.coverage import collection_gaps
 from ghostbus_core.feeds import Feed
 from ghostbus_core.lake import table_properties
 from ghostbus_core.outcomes import DEFAULT, Evidence, Params, classify
+from ghostbus_core.timetable import ID_SWITCH_GRACE
 from ghostbus_jobs.stream import (
     StreamConfig,
     heartbeats_frame,
@@ -162,19 +163,72 @@ def instances(spark: SparkSession, first: date, last: date, dim: Dim = DIM) -> D
     )
 
 
-def attach_instance(rt: DataFrame, spark: SparkSession, dim: Dim = DIM) -> DataFrame:
-    """Realtime rows (``fetched_at``, ``trip_id``, ``start_date``) -> ``trip_instance_key``.
+def with_trip_version(
+    rt: DataFrame, spark: SparkSession, dim: Dim = DIM, grace: timedelta = ID_SWITCH_GRACE
+) -> DataFrame:
+    """Add ``feed_version``: the timetable version each realtime row's ``trip_id`` belongs to.
 
-    The ``trip_id`` is looked up in the version live at fetch time (ADR-0006), giving the trip's
-    natural key, which then finds the scheduled instance on ``start_date`` even if that day's
-    schedule came from another version. Among identical twins the same ``trip_id`` decides.
+    The same rule as ``ghostbus_core.timetable.versions_for_realtime``: the version live at
+    ``fetched_at``; within ``grace`` of its publish, the previous version if the id is only there.
+    Adds ``version_fallback`` (true when the previous version was used). Rows are kept even when
+    no version has the id (``feed_version`` is then the live one), so callers decide what to drop.
     """
-    fv = F.broadcast(spark.table(dim.feed_version).select("feed_version", "valid_from", "valid_to"))
-    live = rt.where(F.col("trip_id").isNotNull()).join(
+    w = Window.orderBy("valid_from")
+    fv = F.broadcast(
+        spark.table(dim.feed_version)
+        .select("feed_version", "valid_from", "valid_to")
+        .withColumn("prev_version", F.lag("feed_version").over(w))
+    )
+    live = rt.drop("feed_version").join(
         fv,
         (F.col("fetched_at") >= F.col("valid_from"))
         & (F.col("valid_to").isNull() | (F.col("fetched_at") < F.col("valid_to"))),
+        "left",
     )
+    in_grace = F.col("prev_version").isNotNull() & (
+        F.col("fetched_at")
+        < F.col("valid_from") + F.expr(f"INTERVAL {int(grace.total_seconds())} SECONDS")
+    )
+    # Two deterministic left joins (trip_id is unique within a version, so no row is repeated).
+    # Deterministic matters: the result feeds a MERGE, which rejects non-deterministic inputs
+    # (a first version using monotonically_increasing_id failed exactly there).
+    in_live = spark.table(dim.trip).select(
+        F.col("feed_version").alias("_v1"), F.col("trip_id").alias("_t1")
+    )
+    in_prev = spark.table(dim.trip).select(
+        F.col("feed_version").alias("_v2"), F.col("trip_id").alias("_t2")
+    )
+    joined = live.join(
+        in_live,
+        (F.col("feed_version") == F.col("_v1")) & (F.col("trip_id") == F.col("_t1")),
+        "left",
+    ).join(
+        in_prev,
+        in_grace & (F.col("prev_version") == F.col("_v2")) & (F.col("trip_id") == F.col("_t2")),
+        "left",
+    )
+    found_live, found_prev = F.col("_v1").isNotNull(), F.col("_v2").isNotNull()
+    return (
+        joined.withColumn("version_fallback", ~found_live & found_prev)
+        .withColumn(
+            "feed_version",
+            F.when(found_live, F.col("feed_version"))
+            .when(found_prev, F.col("prev_version"))
+            .otherwise(F.col("feed_version")),
+        )
+        .drop("_v1", "_t1", "_v2", "_t2", "valid_from", "valid_to", "prev_version")
+    )
+
+
+def attach_instance(rt: DataFrame, spark: SparkSession, dim: Dim = DIM) -> DataFrame:
+    """Realtime rows (``fetched_at``, ``trip_id``, ``start_date``) -> ``trip_instance_key``.
+
+    The ``trip_id`` is looked up in the version live at fetch time (ADR-0006), or just after a
+    publish in the previous one (``with_trip_version``), giving the trip's natural key, which then
+    finds the scheduled instance on ``start_date`` even if that day's schedule came from another
+    version. Among identical twins the same ``trip_id`` decides.
+    """
+    live = with_trip_version(rt.where(F.col("trip_id").isNotNull()), spark, dim)
     trips = spark.table(dim.trip).select(
         "feed_version",
         "trip_id",

@@ -273,3 +273,20 @@ def test_version_key_is_unique_per_zip_and_keeps_the_label() -> None:
     a = version_key("14FEE109", "f72084e211e0" + "0" * 52)
     b = version_key("14FEE109", "5a3116d6ac5e" + "0" * 52)
     assert a != b and a.startswith("14FEE109-") and a.endswith("f72084e2")
+
+
+def _fv(name: str, at: datetime) -> FeedVersion:
+    return FeedVersion(name, name * 8, at)
+
+
+def test_realtime_versions_just_after_a_publish_include_the_previous_one() -> None:
+    """Measured on 15-16 Nov 2026: realtime kept the previous zip's ids for 76 minutes."""
+    from ghostbus_core.timetable import ID_SWITCH_GRACE, versions_for_realtime
+
+    v1 = _fv("a", datetime(2026, 11, 14, 23, 9, tzinfo=UTC))
+    v2 = _fv("b", datetime(2026, 11, 15, 23, 9, tzinfo=UTC))
+    vs = [v2, v1]  # order of input does not matter
+    assert versions_for_realtime(vs, v1.valid_from - timedelta(seconds=1)) == []
+    assert versions_for_realtime(vs, v1.valid_from + timedelta(minutes=5)) == [v1]  # no predecessor
+    assert versions_for_realtime(vs, v2.valid_from + timedelta(minutes=76)) == [v2, v1]
+    assert versions_for_realtime(vs, v2.valid_from + ID_SWITCH_GRACE) == [v2]

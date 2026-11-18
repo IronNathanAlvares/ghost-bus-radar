@@ -26,8 +26,8 @@ the expected cost and the effort. Steps marked **(you)** need the owner.
 **Status, 18 November:** 0.1 to 0.5 done. Code on GitHub (`IronNathanAlvares/ghost-bus-radar`) with CI
 green (unit 20 s, Terraform 44 s, Docker integration and chaos 11 min); bucket guardrails and
 CloudTrail live and tested; rotation documented (next 15 Feb 2027); both overdue measurements
-recorded, one of which found the issue now listed as 1.0. **0.6, the field check, is still open
-(owner).**
+recorded, one of which found the issue fixed as 1.0 (275 outcomes on 15 Nov corrected, all to `RAN`;
+unmatched ids 0.00%). **0.6, the field check, is still open (owner).**
 
 | # | Step | Why | Done when | Cost | Effort |
 |---|---|---|---|---|---|
@@ -42,7 +42,7 @@ recorded, one of which found the issue now listed as 1.0. **0.6, the field check
 
 | # | Step | Why | Done when | Cost | Effort |
 |---|---|---|---|---|---|
-| 1.0 | **Fix: realtime ids lag a timetable publish** (found by 0.5): if a `trip_id` is not in the live version, try the previous one for a few hours after a publish | 15,709 trip updates (0.96%) were unmatched in a 75-minute window after the 15 Nov republish; their trips could be called ghosts without their evidence | unmatched rate 0.00% across all four versions; reconcile 15 to 16 Nov re-run and the number of changed outcomes recorded | cents | half a day |
+| 1.0 | **Done 18 Nov.** **Fix: realtime ids lag a timetable publish** (found by 0.5): if a `trip_id` is not in the live version, try the previous one for a few hours after a publish | 15,709 trip updates (0.96%) were unmatched in a 75-minute window after the 15 Nov republish; their trips could be called ghosts without their evidence | unmatched rate 0.00% across all four versions; reconcile 15 to 16 Nov re-run and the number of changed outcomes recorded | cents | half a day |
 | 1.1 | **Data-quality gates in the nightly job**: trips decided vs scheduled, `NO_DATA` share, unmatched-id rate, collection completeness; fail loudly or flag the day | A wrong number published is worse than a late one. Today a silently bad night (like the 7,003-trip day) would only be caught by a human | each night writes `gold.data_quality`; a breach emails; a test injects a bad day and sees the alert | cents | 1 day |
 | 1.2 | **Nightly summary email**: yesterday's trips, ran / untracked / cancelled with intervals, completeness, cost | Turns monitoring into a habit; the client sees the product working daily | one email per night at about 05:00 UTC | free (SNS email) | half a day |
 | 1.3 | Collection SLOs and a CloudWatch dashboard: completeness ≥ 99% of minutes, gold ready by 06:00 UTC, 0 failed nights a week | Explicit targets are what "production" means | dashboard in Terraform; SLO numbers in the weekly report | free (3 dashboards included) | half a day |

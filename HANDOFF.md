@@ -201,6 +201,8 @@ ARCHIVE_URI=file:///C:/Users/<you>/ghostbus-archive uv run python -m ghostbus_in
 - **Nobody can delete from `raw/`** in the archive bucket, admins included (bucket policy); all
   buckets refuse plain HTTP; CloudTrail `ghostbus-trail` logs management events for a year.
   The CLI access key needs rotating every 90 days (`docs/05-aws-setup.md` section 7).
+- **NTA's realtime ids can lag a timetable publish** (76 minutes on 15 November): matching falls
+  back to the previous version for 3 hours after each publish (rules version 5).
 - **NTA re-uploads the static GTFS zip every night** (about 23:10 to 23:30 UTC), with new bytes
   even when `feed_version` is unchanged. Archive identity is the SHA-256, so expect one archived
   version per day. **The label is not unique:** two uploads can share `feed_info.feed_version` and

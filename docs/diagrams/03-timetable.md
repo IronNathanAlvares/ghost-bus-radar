@@ -59,7 +59,11 @@ fetched, and that key then finds the scheduled trip on its service day.
 ```mermaid
 flowchart TB
     RT["realtime record<br/>trip_id, start_date,<br/>fetched_at"] --> V{"which version was live<br/>at fetched_at?"}
-    V --> T["dim.trip in that version:<br/>trip_id -> route_key, direction,<br/>first departure, first stop"]
+    V --> F{"trip_id in<br/>that version?"}
+    F -->|yes| T
+    F -->|"no, and within 3 h<br/>of its publish"| P["use the previous version<br/>(realtime ids lag a publish)"]
+    P --> T
+    T["dim.trip in that version:<br/>trip_id -> route_key, direction,<br/>first departure, first stop"]
     T --> K["natural trip key<br/>route | direction | date |<br/>first departure | first stop"]
     K --> I["dim.trip_instance<br/>for start_date<br/>(defined by the version<br/>live at 04:00 that day)"]
     I --> OUT(["trip_instance_key"])
@@ -69,7 +73,13 @@ flowchart TB
 - *Why not join on `trip_id`?* NTA regenerates ids per upload. A live record fetched after a new
   upload carries a new id, while the day's scheduled trips came from the older version. The
   natural key (route, direction, date, first departure time, first stop) is the same in both.
-- *How well does it match?* 0.00% unmatched over 49,344 realtime trips (Sprint 2).
+- *How well does it match?* 0.00% unmatched over 49,344 realtime trips in Sprint 2, with one
+  version. Across four versions, 0.96% were unmatched, all in the 75 minutes after one publish:
+  NTA's live feed kept the previous zip's ids for 76 minutes. With a 3-hour fallback to the
+  previous version, 0.00% again over 1.6 million trip updates.
+- *Couldn't a fallback attach a record to the wrong trip?* Ids are regenerated with every zip, so
+  an id found only in the previous version belongs to it. The window is short (3 hours) and the
+  rule is pure, unit-tested, and mirrored exactly in Spark.
 
 ## 3.3 GTFS time is not clock time
 
