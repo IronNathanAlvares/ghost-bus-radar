@@ -55,3 +55,18 @@ def test_stage_copies_the_csvs_to_shared_storage(
     assert where == f"{shared.as_uri()}/abc"
     assert (shared / "abc" / "trips.txt").read_text(encoding="utf-8") == "trip_id\n1\n"
     assert not (shared / "abc" / ".complete").exists()
+
+
+def test_every_glue_task_imports_without_a_running_spark() -> None:
+    """Glue imports the task module before any SparkSession exists, so a module-level Column
+    (F.col at import time) crashes there while passing every test that starts Spark first.
+    That is how the first cloud run of the quality job failed. Import each one in a fresh
+    interpreter with no Spark."""
+    import subprocess
+    import sys
+
+    for module in _entry().TASKS.values():
+        done = subprocess.run(
+            [sys.executable, "-c", f"import {module}"], capture_output=True, text=True, timeout=120
+        )
+        assert done.returncode == 0, f"{module}: {done.stderr[-600:]}"

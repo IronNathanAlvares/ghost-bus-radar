@@ -24,6 +24,7 @@ flowchart TB
     subgraph BATCH["nightly batch"]
         TR["Glue trigger 04:15 UTC"] --> J1["Glue job timetable-load"]
         J1 -->|"on SUCCEEDED"| J2["Glue job reconcile"]
+        J2 -->|"on SUCCEEDED"| J3["Glue job quality<br/>checks + daily email"]
     end
     ARC --> J1
     ARC --> J2
@@ -41,6 +42,8 @@ flowchart TB
     end
     L1 -.->|"metric Collected"| CWM
     J2 -.-> EVB
+    J3 --> ST
+    J3 -->|"daily summary<br/>OK / WARN / FAIL"| SNS
 ```
 
 **Interviewer asks**

@@ -134,6 +134,44 @@ flowchart TD
 - *Why a Wilson interval and not plus-or-minus 1.96 standard errors?* It stays inside 0 to 100%
   and behaves well with small samples and rates near zero, which is exactly where ghost rates live.
 
+## 5.5 Nightly quality gates
+
+**Say it in one breath:** after the nightly outcomes are written, six checks decide whether the
+day's numbers can be trusted, the result is stored in `gold.data_quality`, and an email arrives
+with OK, WARN or FAIL in its subject.
+
+```mermaid
+flowchart TD
+    R(["reconcile SUCCEEDED (about 04:20 UTC)"]) --> Q["Glue job quality<br/>for yesterday"]
+    Q --> C1{"scheduled trips vs<br/>same weekday a week away"}
+    Q --> C2{"realtime ids that<br/>match no trip"}
+    Q --> C3{"minutes collected"}
+    Q --> C4{"trips decided<br/>vs scheduled"}
+    Q --> C5{"NO_DATA share<br/>of bus trips"}
+    Q --> C6{"untracked rate vs<br/>previous 7 days"}
+    C1 & C2 & C3 & C4 & C5 & C6 --> T[("gold.data_quality<br/>one row per day and check")]
+    T --> E["email: subject 'Ghost Bus Radar Thu 19 Nov: OK, ran 88.4%'<br/>rates with 95% intervals, checks, worst routes, batch cost"]
+```
+
+| Check | Fails when | The real incident it would have caught |
+|---|---|---|
+| scheduled vs a week away | off by more than 25% | 15 Nov had 7,003 scheduled trips against 12,184 the next Sunday (same-label timetable zips) |
+| unmatched realtime ids | above 0.5% | 0.96% after the 15 Nov republish (realtime ids lagged the publish) |
+| completeness | under 90% of minutes | the sleeping laptop: 471 of 1,440 minutes on 16 Nov |
+| decided vs scheduled | under 99% | a reconcile that stops at the data clock |
+| NO_DATA share | above 25% of bus trips | long collection gaps |
+| untracked shift | (warns only) more than 2 points and outside the 95% interval | a real change in service, or a code change |
+
+**Interviewer asks**
+- *Why not just alert when the job fails?* The worst failures here never crashed anything: the
+  7,003-trip day ran green end to end. Data checks catch what job monitoring cannot.
+- *How did you choose the thresholds?* By replaying every real failure in a unit test: each must
+  fail, and a healthy day must pass. One test caught that the first threshold (1%) would have
+  missed the 0.96% bug.
+- *Why compare with the same weekday a week away?* Timetables differ by day type (weekday,
+  Saturday, Sunday); a week away is the closest like-for-like day, and the timetable is built 7
+  days ahead, so the comparison always exists.
+
 **Beginner notes**
 - **Property-based testing**: instead of a few hand-picked examples, generate hundreds of random
   inputs and check a rule that must always hold.

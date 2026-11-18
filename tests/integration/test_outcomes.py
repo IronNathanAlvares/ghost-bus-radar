@@ -292,3 +292,44 @@ def test_old_trip_ids_just_after_a_publish_still_find_their_trip(
     assert got[(t40, "v1_0")] == (expected, True)  # old id, inside the grace window
     assert got[(t40, "v2_0")] == (expected, False)  # new id, as before
     assert (V2_PUBLISHED.replace(tzinfo=None) + timedelta(hours=4), "v1_0") not in got
+
+
+def test_quality_gather_counts_the_synthetic_day_exactly(
+    result: tuple[SparkSession, Dim, dict[tuple[date, str], dict[str, object]]],
+) -> None:
+    """The nightly quality job on a known day: every number it reports, checked by hand."""
+    from ghostbus_core.quality import evaluate
+    from ghostbus_jobs.quality import gather, write
+
+    spark, dim, _ = result
+    feeds = Feeds()
+    build_week(feeds)
+    raw = spark.createDataFrame(feeds.rows, "topic STRING, value STRING")
+    src = Sources(
+        trip_updates_frame(raw, CFG),
+        vehicle_positions_frame(raw, CFG),
+        heartbeats_frame(raw, CFG),
+        "test",
+    )
+    day = date(2026, 11, 12)
+    gold = f"{dim.ns}_gold.trip_outcomes"
+    stats = gather(spark, day, src, gold=gold, dim=dim)
+
+    assert (
+        stats.scheduled == spark.table(dim.trip_instance).where(f"service_date = '{day}'").count()
+    )
+    # (the fixture's ``rows`` dict is keyed by route and time, so same-label twins collapse)
+    assert stats.decided == spark.table(gold).where(f"service_date = '{day}'").count()
+    # Polled 06:00 to 13:00 every 2 minutes, both feeds inside the same minute: 211 minutes.
+    assert (stats.minutes_collected, stats.minutes_expected) == (211, 1440)
+    assert stats.rt_with_id > 0 and stats.rt_unmatched == 0
+    assert stats.scheduled_week_away is None  # only 12 to 17 Nov are loaded
+
+    checks = evaluate(stats)
+    table = f"{dim.ns}_gold.data_quality"
+    write(spark, day, checks, table=table)
+    write(spark, day, checks, table=table)  # a rerun updates, never duplicates
+    stored = spark.table(table).where(f"service_date = '{day}'").collect()
+    assert len(stored) == len(checks)
+    assert {r["check_name"]: r["status"] for r in stored}["completeness"] == "fail"
+    spark.sql(f"DROP TABLE IF EXISTS {table} PURGE")

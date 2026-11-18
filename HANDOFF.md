@@ -46,6 +46,9 @@ Sprint 4 added trip outcomes (`docs/03-ghost-definition.md`, ADR-0008):
     Glue chain at 04:15 UTC (timetable load, then reconcile); query it in Athena, workgroup
     `ghostbus`, catalog `s3tablescatalog/ghostbus-lake`. Backfill any range with
     `aws glue start-job-run --job-name ghostbus-reconcile --arguments '{"--ARGS":"--from D --to D"}'`.
+  - After reconcile, `ghostbus-quality` writes `gold.data_quality` and emails a daily summary
+    (OK / WARN / FAIL). FAIL means: do not publish that day's numbers. The owner must confirm the
+    SNS subscription email once, or nothing is delivered.
   - **The Free plan closes the account on 17 May 2027** unless upgraded. Keep the archive synced
     to the laptop.
   - The laptop lake was rebuilt with the new version keys on 18 November and matches the cloud on
@@ -201,6 +204,8 @@ ARCHIVE_URI=file:///C:/Users/<you>/ghostbus-archive uv run python -m ghostbus_in
 - **Nobody can delete from `raw/`** in the archive bucket, admins included (bucket policy); all
   buckets refuse plain HTTP; CloudTrail `ghostbus-trail` logs management events for a year.
   The CLI access key needs rotating every 90 days (`docs/05-aws-setup.md` section 7).
+- **Never build a Spark `Column` at module level** (`F.col` at import time): Glue imports task
+  modules before Spark starts. `tests/unit/test_glue.py` imports each task without Spark.
 - **NTA's realtime ids can lag a timetable publish** (76 minutes on 15 November): matching falls
   back to the previous version for 3 hours after each publish (rules version 5).
 - **NTA re-uploads the static GTFS zip every night** (about 23:10 to 23:30 UTC), with new bytes

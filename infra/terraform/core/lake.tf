@@ -156,6 +156,16 @@ data "aws_iam_policy_document" "glue" {
     resources = [aws_s3_bucket.work.arn, "${aws_s3_bucket.work.arn}/*"]
   }
   statement {
+    sid       = "DailySummaryEmail"
+    actions   = ["sns:Publish"]
+    resources = [aws_sns_topic.alerts.arn]
+  }
+  statement {
+    sid       = "BatchCostInTheSummary"
+    actions   = ["glue:GetJobRuns"]
+    resources = ["arn:aws:glue:${var.region}:${local.account}:job/ghostbus-*"]
+  }
+  statement {
     sid     = "LakeTables"
     actions = ["s3tables:*"]
     resources = [
@@ -185,10 +195,12 @@ locals {
     "--ARCHIVE_URI"                      = "s3://${aws_s3_bucket.archive.bucket}/"
     # Executors cannot read the driver's /tmp: unzipped timetables are staged here for Spark.
     "--STATIC_STAGE_URI" = "s3://${aws_s3_bucket.work.bucket}/tmp/static/"
+    "--ALERTS_TOPIC_ARN" = aws_sns_topic.alerts.arn
   }
   glue_jobs = {
     timetable_load = "Load new static GTFS versions from the archive into lake.dim (SCD2)"
     reconcile      = "Final trip outcomes for yesterday from the raw archive (backfill: --ARGS)"
+    quality        = "Data-quality checks for yesterday into gold.data_quality, and the summary email"
   }
 }
 
@@ -242,6 +254,23 @@ resource "aws_glue_trigger" "after_timetable" {
 
   actions {
     job_name = aws_glue_job.batch["reconcile"].name
+  }
+}
+
+resource "aws_glue_trigger" "after_reconcile" {
+  name    = "ghostbus-after-reconcile"
+  type    = "CONDITIONAL"
+  enabled = var.batch_enabled
+
+  predicate {
+    conditions {
+      job_name = aws_glue_job.batch["reconcile"].name
+      state    = "SUCCEEDED"
+    }
+  }
+
+  actions {
+    job_name = aws_glue_job.batch["quality"].name
   }
 }
 

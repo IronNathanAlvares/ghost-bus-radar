@@ -5,6 +5,7 @@ Glue runs one script per job; this one dispatches to the same ``main()`` the lap
     --TASK timetable_load            load new static versions into lake.dim
     --TASK reconcile                 final outcomes for yesterday (or --ARGS "--from D --to D")
     --TASK outcome_report            rates for --ARGS "--from D --to D"
+    --TASK quality                   checks + summary email for yesterday (or --ARGS "--date D")
 
 Job parameters set the environment the jobs read (``LAKE_MODE``, ``LAKE_TABLE_BUCKET_ARN``,
 ``AWS_REGION``, ``ARCHIVE_URI``), so the code has no Glue-specific branches. Glue adds its own
@@ -22,6 +23,7 @@ TASKS = {
     "timetable_load": "ghostbus_jobs.timetable_load",
     "reconcile": "ghostbus_jobs.reconcile",
     "outcome_report": "ghostbus_jobs.outcome_report",
+    "quality": "ghostbus_jobs.quality",
 }
 ENV_ARGS = (
     "LAKE_MODE",
@@ -29,6 +31,7 @@ ENV_ARGS = (
     "AWS_REGION",
     "ARCHIVE_URI",
     "STATIC_STAGE_URI",
+    "ALERTS_TOPIC_ARN",
 )
 
 

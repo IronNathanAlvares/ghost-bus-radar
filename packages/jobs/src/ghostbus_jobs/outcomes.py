@@ -170,8 +170,9 @@ def with_trip_version(
 
     The same rule as ``ghostbus_core.timetable.versions_for_realtime``: the version live at
     ``fetched_at``; within ``grace`` of its publish, the previous version if the id is only there.
-    Adds ``version_fallback`` (true when the previous version was used). Rows are kept even when
-    no version has the id (``feed_version`` is then the live one), so callers decide what to drop.
+    Adds ``version_fallback`` (true when the previous version was used) and ``version_found``.
+    Rows are kept even when no version has the id (``feed_version`` is then the live one), so
+    callers decide what to drop.
     """
     w = Window.orderBy("valid_from")
     fv = F.broadcast(
@@ -210,6 +211,7 @@ def with_trip_version(
     found_live, found_prev = F.col("_v1").isNotNull(), F.col("_v2").isNotNull()
     return (
         joined.withColumn("version_fallback", ~found_live & found_prev)
+        .withColumn("version_found", found_live | found_prev)
         .withColumn(
             "feed_version",
             F.when(found_live, F.col("feed_version"))

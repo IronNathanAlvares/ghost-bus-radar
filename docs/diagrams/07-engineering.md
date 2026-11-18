@@ -78,7 +78,8 @@ flowchart TB
         B12["two timetable zips with the same NTA label:<br/>the second overwrote the first,<br/>15 Nov lost 5,182 of 12,185 trips<br/>-> version key = label + SHA prefix"]
         B13["realtime ids lagged a timetable publish by 76 min:<br/>24 false ghosts, 92 false 'vanished'<br/>-> previous-version fallback, rules 5"]
         B8 ~~~ B9
-        B10 ~~~ B11 ~~~ B12 ~~~ B13
+        B14["quality job built a Spark Column at import:<br/>passed every test, crashed in Glue<br/>-> lazy Column + no-Spark import test"]
+        B10 ~~~ B11 ~~~ B12 ~~~ B13 ~~~ B14
     end
     S2 ~~~ S4 ~~~ S5
 ```

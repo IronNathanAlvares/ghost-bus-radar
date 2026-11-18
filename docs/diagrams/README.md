@@ -11,7 +11,7 @@ walkthrough, the questions an interviewer is likely to ask (with answers), and b
 | [2. Collection](02-collection.md) | one minute of the cloud poller; pacing rules; feed schedule; static watcher; cutover |
 | [3. The timetable](03-timetable.md) | loading a version (SCD2); matching live trips to scheduled ones; GTFS time; tables |
 | [4. Streaming](04-streaming.md) | Kafka to bronze to silver; exactly once under SIGKILL; watermarks and late data |
-| [5. Outcomes](05-outcomes.md) | the classifier; gaps become NO_DATA; provisional vs final; which trips count in rates |
+| [5. Outcomes](05-outcomes.md) | the classifier; gaps become NO_DATA; provisional vs final; which trips count in rates; nightly quality gates |
 | [6. The cloud](06-cloud.md) | AWS architecture; IAM and guardrails; Terraform layers; costs |
 | [7. Engineering](07-engineering.md) | test pyramid; CI; secrets; the bugs measurements found |
 

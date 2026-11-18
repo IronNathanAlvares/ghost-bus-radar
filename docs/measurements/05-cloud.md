@@ -65,3 +65,32 @@ cent).
 The `NO_DATA` counts are mostly the laptop asleep: it made 471 and 393 of 1,440 calls on 16 and
 17 November. Collection moved to AWS at 07:29 on 18 November, so the first full cloud-collected day is
 Thursday 19 November, decided by the nightly run on 20 November.
+
+## 4. Nightly quality gates (roadmap 1.1 and 1.2)
+
+A third Glue job, `ghostbus-quality`, runs when `reconcile` succeeds. It checks yesterday's
+numbers (`ghostbus_core.quality`), upserts one row per check into `gold.data_quality`, and emails
+a summary with OK, WARN or FAIL in the subject. Each check replays a real incident in
+`tests/unit/test_quality.py`; one test caught that the first unmatched-id threshold (1%) would
+have missed the 0.96% bug, so it fails at 0.5%.
+
+First runs, 18 November (Glue Flex, 79 to 189 s, about 1 to 2 cents each):
+
+| Day | Overall | Failing checks | Passing checks |
+|---|---|---|---|
+| Sun 15 Nov | FAIL | completeness 269 of 1,440 minutes; NO_DATA 72% of bus trips | scheduled 12,185 vs 12,184 a week away; unmatched 0 of 200,160 ids; decided 100% |
+| Mon 16 Nov | FAIL | completeness 453 of 1,440; NO_DATA 60% | scheduled, unmatched 0 of 645,550, decided 100%, untracked 8.7% vs 8.5% |
+| Tue 17 Nov | FAIL | completeness 359 of 1,440; decided 64%; NO_DATA 48% | scheduled, unmatched 0 of 566,071, untracked 8.4% vs 8.5% |
+
+All three FAILs are true: those days were collected by the laptop, which slept. From 19
+November (the first full day collected in AWS) the expected result is OK. Before the
+version-key fix, 15 November's `scheduled_vs_week` would have read 7,003 vs 12,184 (0.57, FAIL);
+before rules 5, its unmatched ids would have read 0.96% (FAIL).
+
+Two bugs found on the first cloud run, both fixed with tests:
+- **A Spark `Column` built at import time.** `quality.py` defined `F.col(...)` at module level,
+  which needs a running SparkContext; Glue imports the module before Spark starts. Every test
+  passed because they start Spark first. A new unit test imports every Glue task module in a
+  fresh interpreter without Spark.
+- **The email subscription was never confirmed.** SNS accepted the messages and delivered none
+  (`PendingConfirmation`). Confirming the subscription email is a one-time owner step.
