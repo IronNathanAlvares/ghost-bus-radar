@@ -21,7 +21,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass
 
-from confluent_kafka import Consumer, Producer, TopicPartition
+from confluent_kafka import Consumer, KafkaError, KafkaException, Producer, TopicPartition
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
@@ -53,6 +53,14 @@ class SmokeResult:
     trigger: str
 
 
+LEADER_WAIT_ATTEMPTS = 6
+RETRIABLE_METADATA = {
+    KafkaError.NOT_LEADER_FOR_PARTITION,
+    KafkaError.LEADER_NOT_AVAILABLE,
+    KafkaError.UNKNOWN_TOPIC_OR_PART,
+}
+
+
 def _percentile(values: list[float], pct: float) -> float:
     ordered = sorted(values)
     index = max(0, min(len(ordered) - 1, round(pct / 100 * (len(ordered) - 1))))
@@ -67,11 +75,22 @@ def _end_offsets(bootstrap: str, topic: str) -> str:
     """
     consumer = Consumer({"bootstrap.servers": bootstrap, "group.id": f"smoke-probe-{uuid.uuid4()}"})
     try:
-        partitions = consumer.list_topics(topic, timeout=10).topics[topic].partitions
-        offsets = {
-            str(p): consumer.get_watermark_offsets(TopicPartition(topic, p), timeout=10)[1]
-            for p in partitions
-        }
+        # A topic created a moment ago may not have elected its partition leaders yet
+        # (NOT_LEADER_FOR_PARTITION, seen once in CI). Those errors are retriable; wait them out.
+        for attempt in range(1, LEADER_WAIT_ATTEMPTS + 1):
+            try:
+                partitions = consumer.list_topics(topic, timeout=10).topics[topic].partitions
+                offsets = {
+                    str(p): consumer.get_watermark_offsets(TopicPartition(topic, p), timeout=10)[1]
+                    for p in partitions
+                }
+                break
+            except KafkaException as exc:
+                err = exc.args[0] if exc.args else None
+                retriable = isinstance(err, KafkaError) and err.code() in RETRIABLE_METADATA
+                if not retriable or attempt == LEADER_WAIT_ATTEMPTS:
+                    raise
+                time.sleep(attempt)
     finally:
         consumer.close()
     return json.dumps({topic: offsets})
