@@ -211,7 +211,8 @@ ARCHIVE_URI=file:///C:/Users/<you>/ghostbus-archive uv run python -m ghostbus_in
     guardrail changes. They also fire on your own deploys, by design.
   - CI's security job runs gitleaks, pip-audit (one triaged advisory) and checkov (triaged skips
     in `.checkov.yaml`).
-  - **Root MFA was off on 18 November: turn it on.**
+  - Owner sign-in is an AWS Builder ID (Google + authenticator-app MFA); the IAM root user has no
+    password, so IAM's `AccountMFAEnabled = 0` is expected, not a gap.
 - **Git Bash rewrites `/ghostbus/...` into a Windows path** in AWS CLI arguments (SSM names): prefix
   `MSYS_NO_PATHCONV=1`.
 - **Never build a Spark `Column` at module level** (`F.col` at import time): Glue imports task

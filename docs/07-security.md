@@ -74,7 +74,7 @@ quality one.
 | The `nathan-admin` CLI key has no MFA | The account type cannot give that user console access or MFA | Key never in synced folders or repo; CloudTrail; tripwires; budget alerts; SCP region and service caps; rotation every 90 days; deploys move to GitHub OIDC (roadmap 4.3) |
 | The downloaded key CSV is in a OneDrive-synced folder (owner's choice) | Owner decision | Git- and Docker-ignored; rotation removes its value |
 | Single region, single bucket | Multi-region is not allowed on this plan | Versioning, deny-delete, hash chain, laptop copy of the archive |
-| IAM and console-login events are not alertable | Global services log to `us-east-1`, which the account's SCPs deny | Root MFA (owner); CloudTrail event history covers 90 days |
+| IAM and console-login events are not alertable | Global services log to `us-east-1`, which the account's SCPs deny | Owner sign-in through AWS Builder ID with MFA; root has no password; CloudTrail event history covers 90 days |
 
 ## 5. Evidence (all on 18 November 2026)
 
@@ -90,8 +90,14 @@ quality one.
 
 ## 6. Owner actions
 
-1. **Enable MFA on the root user.** On 18 November, `AccountMFAEnabled` was 0. Root can close the
-   account or change billing; it is the single most important control.
+1. **Owner sign-in: done, and correctly understood.** The audit read `AccountMFAEnabled = 0` as
+   "root has no MFA". It was the wrong lens for this account type. The IAM credential report shows
+   the root user has **no password at all**. The account is owned by an **AWS Builder ID**, which
+   signs in with Google and has an authenticator-app MFA (TOTP), registered 17 November. So the
+   owner login has two factors. The remaining chain is that Google account: it must have 2-Step
+   Verification, as must the recovery address.
+   *Lesson:* an audit signal is only as good as its model of the system. "Root MFA off" is a
+   finding on a classic account; on a Builder-ID-owned one, the control lives elsewhere.
 2. Rotate the CLI key by 15 February 2027 (`docs/05-aws-setup.md` section 7).
 3. In GitHub settings, enable Dependabot alerts and private vulnerability reporting.
 

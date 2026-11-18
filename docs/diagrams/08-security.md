@@ -181,7 +181,8 @@ flowchart LR
 - *Won't they fire on your own deploys?* Yes, on purpose. "Expected right after a deploy you made"
   is in the email; an alert nobody can explain is the signal.
 - *Why no tripwire on IAM changes or console sign-in?* Those events are global and arrive in
-  us-east-1, which this account's SCPs block. Documented as an accepted gap; root MFA covers the
+  us-east-1, which this account's SCPs block. Documented as an accepted gap; the MFA-protected owner
+  sign-in (AWS Builder ID) covers the
   biggest part of it.
 
 ## 8.7 The software supply chain
@@ -285,8 +286,11 @@ Short, honest answers you can give, each tied to something you can show.
 9. **How do you validate policies?** IAM Access Analyzer `validate-policy` on every deployed identity
    and bucket policy (0 findings), and the policy simulator for "would this be allowed?" questions,
    which is how the account's SCPs were mapped before writing more Terraform.
-10. **Root user?** Locked away with MFA, used for nothing day to day. (On 18 November the audit found
-    root MFA off; turning it on was the top owner action.)
+10. **Root user?** On this account, the IAM root user has no password at all; the account is owned by
+    an AWS Builder ID that signs in with Google plus an authenticator-app MFA. The audit first
+    flagged "root MFA off" (`AccountMFAEnabled = 0`), then the credential report and the Builder ID
+    page showed the control simply lives elsewhere. Good answer to *"tell me about a false positive"*:
+    an audit signal is only as good as its model of the system.
 
 ### Secrets
 

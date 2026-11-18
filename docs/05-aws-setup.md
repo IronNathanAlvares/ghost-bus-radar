@@ -21,7 +21,9 @@ credits plus up to $100 earned, 6 months). That mode has fixed rules:
 
 Steps:
 
-1. Sign up (Basic support). Add MFA to the root user and stop using root.
+1. Sign up (Basic support). In the new experience the account is owned by an AWS Builder ID: add
+   MFA there (profile page, Security, Register device) and keep 2-Step Verification on the Google
+   account it signs in with. The IAM root user has no password, so IAM's root-MFA flag stays 0.
 2. In IAM, create a user `nathan-admin` with **AdministratorAccess** attached directly.
    Console access could not be enabled for this user, so it has no password and needs no MFA.
 3. On the user's *Security credentials* tab: **Create access key**, use case *Command Line
