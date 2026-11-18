@@ -8,6 +8,8 @@
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/site.css">
+  <link rel="modulepreload" href="assets/common.js">
+  <script type="module" src="assets/methodology.js"></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -108,10 +110,23 @@
       live feed already shows is taken into account: a bus tracked live cannot be a ghost, so its chance
       is higher; a bus given a vehicle cannot be a ghost either; close to departure, a cancellation with
       notice would already have been announced. Hours with few trips lean on the route's overall record.</p>
-    <p>This is model <code>heuristic-v1</code>: built on stated assumptions, and not yet measured
-      against what actually happened. Until it has been (with a calibration check on days it was not
-      built from), read it as a guide, not a promise. When a route has no published history yet, we say
-      so instead of showing a number.</p>
+    <p>This is model <code>heuristic-v1</code>: built on stated assumptions, and checked every night
+      against what actually happened, on days it was not built from:
+      <a href="#calibration">how good it has been so far</a>. Read it as a guide, not a promise. When a
+      route has no published history yet, we say so instead of showing a number.</p>
+
+    <h2 id="calibration">How good is the chance?</h2>
+    <p>Every night we check the chance against what happened, on days the model never saw. For each
+      bus that day, we replay the live feed as it was 30, 15, 5 and 1 minutes before it was due, ask
+      the model exactly as the "My stop" page would have, using only the weeks before, and compare
+      with whether the bus ran.</p>
+    <p id="brier">The <strong>Brier score</strong> is the average squared gap between the chance and
+      what happened (1 if it ran, 0 if not): 0 is perfect, and lower is better. We compare it with two
+      simple rivals: <strong>"the bus always comes"</strong> (what a timetable implies) and one
+      <strong>base rate</strong> for every bus. The chance is only worth showing if it beats both.
+      The <strong>reliability diagram</strong> groups predictions by the chance given; if the chance
+      is honest, about 80% of the buses given 80% really ran.</p>
+    <div id="calibration-results"><p class="muted">Loading the latest results…</p></div>
 
     <h2 id="limits">What the numbers can't tell you</h2>
     <ul>

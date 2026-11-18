@@ -244,6 +244,7 @@ locals {
     quality        = "Data-quality checks for yesterday into gold.data_quality, and the summary email"
     export         = "Public JSON for the website (data/v1), only from days that passed the quality gates"
     api_index      = "Stop index for the API: every bus departure today and tomorrow, 256 shards (ADR-0012)"
+    calibration    = "Walk-forward backtest of the API probability: Brier score and reliability (ADR-0014)"
   }
 }
 
@@ -339,6 +340,11 @@ resource "aws_glue_trigger" "after_reconcile" {
 
   actions {
     job_name = aws_glue_job.batch["quality"].name
+  }
+
+  # In parallel with quality: the backtest needs yesterday's final outcomes, nothing more.
+  actions {
+    job_name = aws_glue_job.batch["calibration"].name
   }
 }
 

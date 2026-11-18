@@ -406,3 +406,61 @@ def test_api_index_and_the_api_on_real_spark_tables(
     body = departures({"pathParameters": {"code": "101"}}, src)
     jsonschema.validate(body, schemas.load(schemas.DEPARTURES))
     assert [(r["route"], r["status"]) for r in body["departures"]] == [("46A", "no_live_data")]
+
+
+def test_calibration_backtest_replays_the_live_status_at_each_lead(
+    result: tuple[SparkSession, Dim, dict[tuple[date, str], dict[str, object]]], tmp_path: Path
+) -> None:
+    """Walk-forward backtest (ADR-0014) on Monday 16 November, history from the 12th and 13th only.
+
+    46A 08:00 was cancelled at 07:58 (CANCELLED_LATE): one minute before, the replayed feed says
+    cancelled (p = 0); five minutes before it was still scheduled, and a cancellation with notice
+    can be ruled out that close to departure, so its history (one ran, one cancelled early) gives
+    p = 1.0; at 15 and 30 minutes the same history gives 0.5. Route 7 07:00 (PHANTOM_LIVE) had a
+    vehicle named from 06:40, so it is "assigned" from the 15-minute mark; it has no history
+    (route 7 is new in version 2), so it is counted but not scored.
+    """
+    import jsonschema
+
+    from ghostbus_core import schemas
+    from ghostbus_jobs.calibration import run
+
+    spark, dim, _ = result
+    gold = f"{dim.ns}_gold.trip_outcomes"
+    table = f"{dim.ns}_gold.calibration_predictions"
+    feeds = Feeds()
+    build_week(feeds)
+    raw = spark.createDataFrame(feeds.rows, "topic STRING, value STRING")
+    src = Sources(
+        trip_updates_frame(raw, CFG),
+        vehicle_positions_frame(raw, CFG),
+        heartbeats_frame(raw, CFG),
+        "test",
+    )
+    site = LocalArchive(tmp_path / "site")
+    try:
+        doc = run(spark, [date(2026, 11, 16)], site, lambda _day: src, gold, table, dim)
+        rows = spark.table(table).collect()
+        got = {
+            (r["route_slug"], r["lead_min"]): (r["status"], r["probability"], r["ran"])
+            for r in rows
+        }
+        assert got == {
+            ("dublin-bus-46a", 30): ("scheduled", 0.5, 0),
+            ("dublin-bus-46a", 15): ("scheduled", 0.5, 0),
+            ("dublin-bus-46a", 5): ("scheduled", 1.0, 0),
+            ("dublin-bus-46a", 1): ("cancelled", 0.0, 0),
+            ("dublin-bus-7", 30): ("scheduled", None, 0),
+            ("dublin-bus-7", 15): ("assigned", None, 0),
+            ("dublin-bus-7", 5): ("assigned", None, 0),
+            ("dublin-bus-7", 1): ("assigned", None, 0),
+        }
+        assert {r["base_rate"] for r in rows} == {0.25}  # 1 of 4 history trips ran
+        jsonschema.validate(doc, schemas.load(schemas.EXPORT["calibration.json"]))
+        assert (doc["overall"]["scored"], doc["overall"]["without_history"]) == (4, 4)
+        assert (tmp_path / "site" / "calibration.json").exists()
+        # Rerunning the day replaces its rows instead of adding to them.
+        run(spark, [date(2026, 11, 16)], None, lambda _day: src, gold, table, dim)
+        assert spark.table(table).count() == 8
+    finally:
+        spark.sql(f"DROP TABLE IF EXISTS {table} PURGE")

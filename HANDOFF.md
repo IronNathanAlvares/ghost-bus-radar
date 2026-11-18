@@ -66,6 +66,10 @@ Sprint 4 added trip outcomes (`docs/03-ghost-definition.md`, ADR-0008):
   - **Website** (ADR-0013): `terraform output site_url`. Pages are `web/` (deployed by
     `terraform apply`); preview locally with `uv run python infra/site/preview.py` (demo data) or
     `--live` (the published data). Security headers: `infra/site/security_headers.json`.
+  - **Calibration backtest** (ADR-0014): `ghostbus-calibration` runs after `reconcile` (with
+    `quality`), stores predictions in `gold.calibration_predictions` and publishes
+    `data/v1/calibration.json` (drawn on the methodology page). Backfill: `--ARGS "--from D --to D"`.
+    First result (16-17 Nov): beats "always comes", not yet the base rate; see measurement 08.
   - **What's next:** `docs/06-roadmap.md`. Phase 0 is in progress: the code is on GitHub
     (`IronNathanAlvares/ghost-bus-radar`, public), and the archive guardrails and CloudTrail are live.
 - The field check needs a person at a bus stop.

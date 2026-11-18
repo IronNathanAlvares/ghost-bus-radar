@@ -180,6 +180,42 @@ flowchart TB
 - *How does the site stay honest before there is data?* It reads the same quality verdicts as the
   export: no published day means an empty league with the reason, never a number from a bad day.
 
+## 6.1e Is the chance any good? (calibration backtest)
+
+**Say it in one breath:** every night a job replays yesterday's archived live feed as it was 30,
+15, 5 and 1 minutes before each bus was due, asks the model exactly as the API would have with
+history from earlier days only, and scores it against what happened and against two simple rivals.
+
+```mermaid
+flowchart TB
+    G[("gold.trip_outcomes<br/>28 days before the test day")] --> H["route histories<br/>(same path as the published files)"]
+    T[("gold.trip_outcomes<br/>test day, fully collected buses")] --> M["each trip at 30, 15, 5, 1 min<br/>before its scheduled start"]
+    A[("raw archive<br/>snapshots of that moment")] --> R["replay + production matcher<br/>(attach_instance)"]
+    M --> R
+    R --> S["live status then:<br/>cancelled / tracked / assigned / scheduled"]
+    H --> P["departures.probability<br/>(the API's code)"]
+    S --> P
+    P --> Q[("gold.calibration_predictions<br/>day replaced, not appended")]
+    T -->|"did it run?"| Q
+    Q --> C["Brier vs 'always comes' and base rate;<br/>reliability bins; by lead and status"]
+    C --> J["data/v1/calibration.json<br/>drawn on the methodology page"]
+```
+
+**Interviewer asks**
+- *How do you avoid leaking the answer into the test?* Walk-forward: a test day's predictions use
+  history from the days before it only, and the live status comes from snapshots fetched before the
+  moment of prediction. The test day's own outcomes are only used to score.
+- *Why a Brier score and not accuracy?* Accuracy throws the probability away (is 0.51 "comes"?).
+  Brier rewards being confident when right and punishes being confident when wrong, and it is a
+  proper scoring rule: you can't game it by shading your forecasts.
+- *Why two baselines?* "Always comes" is what a timetable implies, the bar a passenger has today.
+  One base rate for every bus is the bar for "the model knows something about this particular bus".
+  On the first two days the model beat the first (+7%) and lost to the second (−8%).
+- *What did the backtest find?* That 20% of buses showing "cancelled" shortly before departure
+  still ran, and that routes with very little history get extreme guesses. Both are fixable
+  (shrink routes toward the network rate; learn the chance that a cancelled bus still runs), and
+  both would have stayed invisible without replaying the archive (measurement 08).
+
 ## 6.2 Who may do what (least privilege)
 
 **Say it in one breath:** every component has its own IAM role with only the actions it needs on

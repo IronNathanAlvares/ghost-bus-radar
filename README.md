@@ -14,7 +14,8 @@ days that passed the quality gates (ADR-0011), and a **"will my bus come?" API**
 `GET /v1/stops/{code}/departures`, with each bus's live status and a probability, served from the
 archive without streaming at a gateway p95 of 323 ms (ADR-0012,
 [measurement 06](docs/measurements/06-api.md)), and a **website** on CloudFront with the league table,
-route pages, live departures at your stop and a methodology page (ADR-0013). How it all works, as diagrams:
+route pages, live departures at your stop and a methodology page (ADR-0013). The chance shown is
+backtested every night on days it never saw ([measurement 08](docs/measurements/08-calibration.md)). How it all works, as diagrams:
 [`docs/diagrams/`](docs/diagrams/README.md). See [`PLAN.md`](PLAN.md) for the design,
 [`SPRINTS.md`](SPRINTS.md) for progress, [`HANDOFF.md`](HANDOFF.md) to pick it up cold.
 Research and sources: [`docs/01-research.md`](docs/01-research.md). Decisions: [`docs/adr/`](docs/adr/).

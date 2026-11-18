@@ -1,0 +1,321 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ghostbus.calibration.v1",
+  "description": "data/v1/calibration.json: how good the 'will my bus come?' probability is, from a walk-forward backtest on the archive (ADR-0014).",
+  "type": "object",
+  "required": [
+    "schema",
+    "attribution",
+    "model",
+    "generated_at",
+    "window_days",
+    "test_days",
+    "leads_min",
+    "overall",
+    "beats_always_comes",
+    "beats_base_rate",
+    "reliability",
+    "by_lead",
+    "by_status"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ghostbus.calibration.v1"
+    },
+    "attribution": {
+      "$ref": "#/$defs/attribution"
+    },
+    "model": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "window_days": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "test_days": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    },
+    "leads_min": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      }
+    },
+    "overall": {
+      "$ref": "#/$defs/summary"
+    },
+    "beats_always_comes": {
+      "type": "boolean"
+    },
+    "beats_base_rate": {
+      "type": "boolean"
+    },
+    "reliability": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bin"
+      }
+    },
+    "by_lead": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/summary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "lead_min",
+              "reliability"
+            ]
+          }
+        ]
+      }
+    },
+    "by_status": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/summary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "status"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "attribution": {
+      "type": "object",
+      "required": [
+        "source",
+        "source_url",
+        "licence",
+        "disclaimer"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "source_url": {
+          "type": "string"
+        },
+        "licence": {
+          "const": "CC BY 4.0"
+        },
+        "disclaimer": {
+          "type": "string"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "predictions",
+        "scored",
+        "without_history",
+        "mean_predicted",
+        "share_ran",
+        "brier",
+        "brier_always_comes",
+        "brier_base_rate",
+        "skill_vs_always_comes",
+        "skill_vs_base_rate",
+        "calibration_error"
+      ],
+      "properties": {
+        "predictions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "scored": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "without_history": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mean_predicted": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "share_ran": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "brier": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "brier_always_comes": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "brier_base_rate": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "skill_vs_always_comes": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "skill_vs_base_rate": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "calibration_error": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        }
+      }
+    },
+    "bin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to",
+        "n",
+        "mean_predicted",
+        "share_ran",
+        "lo",
+        "hi"
+      ],
+      "properties": {
+        "from": {
+          "type": "number"
+        },
+        "to": {
+          "type": "number"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mean_predicted": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "share_ran": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "lo": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "hi": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        }
+      }
+    }
+  }
+}
