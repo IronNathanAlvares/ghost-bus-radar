@@ -36,7 +36,7 @@ silently drop it. The why behind each item is in `PLAN.md`.
 | Local collector running in Docker (`--profile collect`), archive in `~/ghostbus-archive` | done, collecting since 15 Nov 2026 19:31 UTC |
 | `docs/measurements/01-feed-profile.md`: sizes, entities, `schedule_relationship` mix, vehicle coverage per operator, header lag | done (first 17 min); re-run after 72 h |
 | ~~Measure the real rate limit by backing off on 429~~ | dropped: the policy publishes the limit, and probing above it would break the policy. 429s are recorded instead |
-| Fetch success over 72 hours (`feed_profile` uptime table) | doing, due 18 Nov 2026 |
+| Fetch success over 72 hours (`feed_profile` uptime table) | done 18 Nov: laptop about 33% (asleep), cloud 123 of 123 minutes since the cutover; 0 HTTP 429 (measurement 01, update) |
 | Billing alarms ($10, $50, $150) via Terraform, then deploy poller + archive bucket to AWS | blocked: AWS account (you asked to do this later); moved to S5 |
 
 **Measure:** fetch success rate over 72 hours; feed profile numbers.
@@ -57,7 +57,7 @@ Findings that change later sprints: route must come from the static trip (realti
 | Property-based tests (Hypothesis): calendar vs brute-force oracle, wall-clock times every day 2024-2032, SCD2 invariants over random histories | done |
 | Spark SCD2 result equals the pure reference implementation (integration test) | done |
 | Two versions, NTA-shaped (all ids regenerated, renamed/withdrawn/new route, renamed stop): old trips resolve to old definitions | done (integration test) |
-| Same proof on two **real** archived versions | waiting for NTA's next upload; the watcher will catch it |
+| Same proof on two **real** archived versions | done 18 Nov: 4 real versions; unmatched 0.96% / 1.38%, all in a 75-minute window after the 15 Nov republish (realtime ids lag the publish); fix is roadmap 1.0 (measurement 02, transition) |
 | `rt_match_report`: realtime against the live version (`docs/measurements/02-timetable-match.md`) | done |
 
 **Measure:** share of realtime trip ids that match the live static version (unmatched rate).

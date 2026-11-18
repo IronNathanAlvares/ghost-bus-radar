@@ -61,3 +61,30 @@ static trip via `trip_id`.
   "transition" section here. Until then this measure is necessary, not sufficient.
 - ADDED trips (1.7%) carry no `trip_id` and are, by definition, not in the timetable. They will
   be reported as extra service in Sprint 4, never as ghosts.
+
+## Transition: realtime ids around timetable changes (18 November 2026)
+
+`rt_match_report` over every archived snapshot (15 to 18 November), with four loaded versions:
+14 Nov 23:09 (`14FEE109...-f72084e2`), 15 Nov 23:09 (same label, `-5a3116d6`), 16 Nov 23:20
+(`03E379CA...`) and 17 Nov 23:27 (`E9368697...`).
+
+| Feed | Trips with a `trip_id` | Unmatched in the live version | Resolved to a trip instance |
+|---|---|---|---|
+| trip_updates | 1,633,371 | **15,709 (0.96%)** | 99.14% |
+| vehicles | 651,441 | **9,008 (1.38%)** | 99.09% |
+
+- **Every unmatched id is Dublin Bus, and every one falls in one 75-minute window:** 23:10 on 15 Nov
+  to 00:25 on 16 Nov, right after NTA published the same-label republish `5a3116d6`. That zip gave
+  Dublin Bus trips new ids, but **the realtime feed kept the previous zip's ids for about 76
+  minutes**; all 15,709 unmatched trip updates are found in the previous version.
+- The two real timetable changes (16 and 17 November) switched over with **0 unmatched**: there,
+  realtime ids changed at, or before, the publish time.
+- Outside that window the unmatched rate is 0.00%, as in Sprint 2.
+
+**Consequence and fix (roadmap 1.0):** the matcher assumes realtime ids switch exactly when the
+new zip is published (`Last-Modified`). In this window, realtime records were not attached to
+their trips, so late-evening trips on 15 November could be judged without their evidence (risk
+of false `GHOST`). Fix: if a `trip_id` is not in the live version, try the previous version for a
+few hours after each publish; re-run `reconcile` for 15 and 16 November and record how many
+outcomes change.
+

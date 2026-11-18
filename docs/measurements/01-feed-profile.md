@@ -101,3 +101,20 @@ Seventeen calls in seventeen minute slots, none throttled at one call per minute
 | Stale vehicle positions persist for up to ~28 min | Sprint 4 tracking definition |
 | No vehicles for rail and Luas | Ghost outcomes for bus only (as planned) |
 | Entity ids are positional | `trip_key` on every record; silver dedupes on it (Sprint 3) |
+
+## Update, 18 November 2026: uptime, laptop against cloud
+
+`feed_profile --since 2026-11-15T19:30Z` over the merged laptop and cloud archive:
+
+| Period | Minute slots | Collected | Success | 429s | Failures |
+|---|---|---|---|---|---|
+| Laptop, 15 Nov 19:31 to 18 Nov 07:29 (asleep most of the time) | about 3,600 | 1,220 | about 33% | 0 | 55 network errors |
+| **Cloud Lambda, 18 Nov 07:31 to 09:33** | 123 | **123** | **100%** | 0 | none |
+
+- The laptop's 33% is the point of moving collection: it only polled while the laptop was awake.
+- The cloud window is two hours so far. The `ghostbus-not-collecting` alarm watches it
+  continuously; a longer cloud-only figure belongs in the next weekly report.
+- No HTTP 429 in about 1,340 calls at one call a minute: the limit as read (ADR-0005) holds.
+- Archive growth is now about 134 MB a day, of which about 110 MB is NTA's nightly static zip
+  (roadmap 1.6).
+
