@@ -15,7 +15,9 @@ import argparse
 import logging
 import os
 import sys
+from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
+from typing import Any
 
 from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql import functions as F
@@ -24,6 +26,8 @@ from ghostbus_core.lake import LakeSettings
 from ghostbus_core.outcomes import DEFAULT
 from ghostbus_core.quality import Check, DayStats, evaluate, overall, render
 from ghostbus_core.timetable import LOCAL_TZ
+from ghostbus_ingest.archive import Archive, archive_from_env
+from ghostbus_ingest.provenance import FIRST_DAY, read_seal, seal_through, verify
 from ghostbus_jobs.outcome_report import AGENCY
 from ghostbus_jobs.outcomes import GOLD, Sources, sources_from_archive, with_trip_version
 from ghostbus_jobs.spark import build_spark
@@ -173,6 +177,21 @@ def gather(
     )
 
 
+def with_archive_integrity(stats: DayStats, archive: Archive) -> DayStats:
+    """Seal every complete, unsealed archive day, then re-verify the whole chain."""
+    yesterday = datetime.now(UTC).date() - timedelta(days=1)
+    for s in seal_through(archive, yesterday):
+        log.info("sealed %s: %d objects, chain %s", s.day, s.objects, s.chain)
+    verdicts = verify(archive, FIRST_DAY, yesterday)
+    head = read_seal(archive, yesterday)
+    return replace(
+        stats,
+        archive_days_verified=sum(v.ok for v in verdicts),
+        archive_failures=[f"{v.day}: {v.detail}" for v in verdicts if not v.ok],
+        chain_head=head.chain if head else None,
+    )
+
+
 def write(spark: SparkSession, day: date, checks: list[Check], table: str = QUALITY) -> None:
     """Upsert one row per (service_date, check). Deterministic input, so MERGE accepts it."""
     status = overall(checks)
@@ -195,21 +214,43 @@ def write(spark: SparkSession, day: date, checks: list[Check], table: str = QUAL
     """)
 
 
+#: Glue triggers that make up the nightly chain; manual and backfill runs are not "last night".
+NIGHTLY_TRIGGERS = {"ghostbus-nightly", "ghostbus-after-timetable", "ghostbus-after-reconcile"}
+
+
+def scheduled_dpu_seconds(runs: list[dict[str, Any]], since: datetime) -> float | None:
+    """DPU-seconds of the nightly chain's runs since ``since``; None if there were none.
+
+    The first summary email counted every run in the window, including a day of manual rebuilds,
+    and reported $0.322 for a night that costs about $0.05.
+    """
+    chosen = [
+        float(r["DPUSeconds"])
+        for r in runs
+        if r.get("TriggerName") in NIGHTLY_TRIGGERS
+        and r.get("StartedOn") is not None
+        and r["StartedOn"] >= since
+        and r.get("DPUSeconds")
+    ]
+    return sum(chosen) if chosen else None
+
+
 def batch_cost(region: str, since: datetime) -> float | None:
-    """What the Glue jobs that finished since ``since`` cost (Flex price). None outside AWS."""
+    """What last night's scheduled Glue runs cost (Flex price). None outside AWS or if none ran."""
     try:
         import boto3
 
         glue = boto3.client("glue", region_name=region)
-        dpu_s = 0.0
-        for job in BATCH_JOBS:
-            for run in glue.get_job_runs(JobName=job, MaxResults=10)["JobRuns"]:
-                if run.get("StartedOn") and run["StartedOn"] >= since and run.get("DPUSeconds"):
-                    dpu_s += float(run["DPUSeconds"])
-        return dpu_s / 3600 * FLEX_DPU_HOUR_USD
+        runs = [
+            r
+            for job in BATCH_JOBS
+            for r in glue.get_job_runs(JobName=job, MaxResults=20)["JobRuns"]
+        ]
     except Exception as exc:  # no credentials or no Glue: the cost line is optional
         log.info("batch cost unavailable: %s", exc)
         return None
+    dpu_s = scheduled_dpu_seconds(runs, since)
+    return None if dpu_s is None else dpu_s / 3600 * FLEX_DPU_HOUR_USD
 
 
 def publish(topic_arn: str, region: str, subject: str, body: str) -> None:
@@ -240,6 +281,7 @@ def main(argv: list[str] | None = None) -> int:
         else None
     )
     stats = gather(spark, args.date, src, batch_cost_usd=cost)
+    stats = with_archive_integrity(stats, archive_from_env(os.environ))
     checks = evaluate(stats)
     write(spark, args.date, checks)
     subject, body = render(stats, checks)

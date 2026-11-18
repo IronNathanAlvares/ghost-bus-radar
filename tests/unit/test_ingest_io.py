@@ -136,3 +136,19 @@ def test_local_create_if_absent(tmp_path: Path) -> None:
     assert a.create_if_absent("claims/minute=7", b"first")
     assert not a.create_if_absent("claims/minute=7", b"second")
     assert a.get_bytes("claims/minute=7") == b"first"
+
+
+def test_the_api_key_never_reaches_a_stored_error() -> None:
+    """Heartbeats store error text in S3, Kafka and logs. Even when an error message or an NTA
+    error page contains the key, the stored error must not."""
+    key = "fake-key-for-the-redaction-test"
+
+    def echoing_page(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, text=f"invalid key {request.headers['x-api-key']}")
+
+    def echoing_exception(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError(f"proxy refused request with x-api-key={key}")
+
+    for handler in (echoing_page, echoing_exception):
+        res = NtaClient(key, transport=httpx.MockTransport(handler)).fetch(Feed.VEHICLES)
+        assert res.error is not None and key not in res.error and "[REDACTED]" in res.error

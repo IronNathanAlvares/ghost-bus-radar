@@ -52,6 +52,11 @@ class DayStats:
     #: (route, trips in rates, untracked) with the most untracked trips.
     worst_routes: list[tuple[str, int, int]] = field(default_factory=list)
     batch_cost_usd: float | None = None
+    #: Archive hash chain (``provenance``): days re-verified tonight, those that failed, and the
+    #: newest chain hash, which the email carries out of AWS as an independent copy.
+    archive_days_verified: int = 0
+    archive_failures: list[str] = field(default_factory=list)
+    chain_head: str | None = None
 
 
 @dataclass(frozen=True)
@@ -130,6 +135,27 @@ def evaluate(s: DayStats) -> list[Check]:
             Check("no_data_share", v, status, f"{s.no_data:,} of {s.bus_trips:,} bus trips NO_DATA")
         )
 
+    if s.archive_days_verified or s.archive_failures:
+        if s.archive_failures:
+            checks.append(
+                Check(
+                    "archive_integrity",
+                    float(len(s.archive_failures)),
+                    FAIL,
+                    "raw archive changed since it was sealed: " + "; ".join(s.archive_failures),
+                )
+            )
+        else:
+            checks.append(
+                Check(
+                    "archive_integrity",
+                    0.0,
+                    OK,
+                    f"{s.archive_days_verified} sealed days re-verified, "
+                    f"chain {(s.chain_head or '?')[:16]}",
+                )
+            )
+
     if s.in_rates and s.trailing_in_rates:
         today = s.untracked / s.in_rates
         before = s.trailing_untracked / s.trailing_in_rates
@@ -183,6 +209,11 @@ def render(s: DayStats, checks: list[Check]) -> tuple[str, str]:
     if s.worst_routes:
         lines += ["", "Most untracked trips (route: untracked / in rates):"]
         lines += [f"  {r}: {u} / {n}" for r, n, u in s.worst_routes]
+    if s.chain_head:
+        lines += [
+            "",
+            f"Archive chain head (keep this email: it is an independent copy): {s.chain_head}",
+        ]
     if s.batch_cost_usd is not None:
         lines += ["", f"Last night's batch cost: ${s.batch_cost_usd:.3f}"]
     if status == FAIL:

@@ -26,7 +26,7 @@ data "aws_iam_policy_document" "archive_bucket" {
     sid       = "DenyDeletingRawData"
     effect    = "Deny"
     actions   = ["s3:DeleteObject", "s3:DeleteObjectVersion"]
-    resources = ["${aws_s3_bucket.archive.arn}/raw/*"]
+    resources = ["${aws_s3_bucket.archive.arn}/raw/*", "${aws_s3_bucket.archive.arn}/provenance/*"]
     principals {
       type        = "*"
       identifiers = ["*"]
@@ -101,6 +101,20 @@ resource "aws_s3_bucket_lifecycle_configuration" "trail" {
     expiration {
       days = 365
     }
+    noncurrent_version_expiration {
+      noncurrent_days = 365
+    }
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+}
+
+# Versioned, so an overwritten log file keeps its original (CloudTrail also signs digests).
+resource "aws_s3_bucket_versioning" "trail" {
+  bucket = aws_s3_bucket.trail.id
+  versioning_configuration {
+    status = "Enabled"
   }
 }
 
@@ -170,4 +184,88 @@ resource "aws_cloudtrail" "main" {
   enable_log_file_validation    = true
 
   depends_on = [aws_s3_bucket_policy.trail]
+}
+
+# --- tripwires --------------------------------------------------------------------------------------
+# CloudTrail management events -> EventBridge -> the alerts email. Each one means "a human should
+# look": expected right after a deploy you made, alarming otherwise. IAM and console sign-in events
+# are global (logged in us-east-1), which this account's SCPs do not allow; see docs/07-security.md.
+
+locals {
+  tripwires = {
+    secret-read = {
+      description = "Someone other than the poller read the NTA API key"
+      # Read-only events reach EventBridge only with this rule state.
+      state = "ENABLED_WITH_ALL_CLOUDTRAIL_MANAGEMENT_EVENTS"
+      pattern = {
+        source        = ["aws.ssm"]
+        "detail-type" = ["AWS API Call via CloudTrail"]
+        detail = {
+          eventSource = ["ssm.amazonaws.com"]
+          eventName   = ["GetParameter", "GetParameters", "GetParameterHistory"]
+          userIdentity = {
+            arn = [{ "anything-but" = { prefix = "arn:aws:sts::${local.account}:assumed-role/ghostbus-poller/" } }]
+          }
+          "$or" = [
+            { requestParameters = { name = [var.nta_key_parameter] } },
+            { requestParameters = { names = [var.nta_key_parameter] } },
+          ]
+        }
+      }
+    }
+    audit-trail = {
+      description = "The audit trail was stopped, deleted or reconfigured"
+      state       = "ENABLED"
+      pattern = {
+        source        = ["aws.cloudtrail"]
+        "detail-type" = ["AWS API Call via CloudTrail"]
+        detail = {
+          eventName = ["StopLogging", "DeleteTrail", "UpdateTrail", "PutEventSelectors", "PutInsightSelectors"]
+        }
+      }
+    }
+    bucket-guardrails = {
+      description = "A bucket policy, versioning or public-access setting changed on a ghostbus bucket"
+      state       = "ENABLED"
+      pattern = {
+        source        = ["aws.s3"]
+        "detail-type" = ["AWS API Call via CloudTrail"]
+        detail = {
+          eventName = [
+            "PutBucketPolicy", "DeleteBucketPolicy", "PutBucketVersioning",
+            "PutBucketPublicAccessBlock", "DeleteBucketPublicAccessBlock",
+          ]
+          requestParameters = { bucketName = [{ prefix = "ghostbus-" }] }
+        }
+      }
+    }
+  }
+}
+
+resource "aws_cloudwatch_event_rule" "tripwire" {
+  for_each      = local.tripwires
+  name          = "ghostbus-tripwire-${each.key}"
+  description   = each.value.description
+  state         = each.value.state
+  event_pattern = jsonencode(each.value.pattern)
+}
+
+resource "aws_cloudwatch_event_target" "tripwire" {
+  for_each = local.tripwires
+  rule     = aws_cloudwatch_event_rule.tripwire[each.key].name
+  arn      = aws_sns_topic.alerts.arn
+
+  input_transformer {
+    input_paths = {
+      event  = "$.detail.eventName"
+      who    = "$.detail.userIdentity.arn"
+      ip     = "$.detail.sourceIPAddress"
+      agent  = "$.detail.userAgent"
+      time   = "$.time"
+      region = "$.region"
+    }
+    input_template = jsonencode(
+      "TRIPWIRE ${each.key}: ${each.value.description}. <event> by <who> from <ip> (<agent>) at <time> in <region>. Expected if you just deployed or ran this yourself; otherwise rotate the CLI key and check CloudTrail (docs/07-security.md)."
+    )
+  }
 }

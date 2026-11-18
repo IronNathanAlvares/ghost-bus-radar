@@ -44,6 +44,10 @@ class Archive(Protocol):
     def get_bytes(self, key: str) -> bytes | None: ...
     def exists(self, key: str) -> bool: ...
     def list_keys(self, prefix: str) -> Iterator[str]: ...
+    def list_objects(self, prefix: str) -> Iterator[tuple[str, int, str]]:
+        """``(key, size, etag)`` for every object under ``prefix`` (etag = MD5 for single-part)."""
+        ...
+
     def create_if_absent(self, key: str, data: bytes) -> bool:
         """Write ``key`` only if it does not exist. True for exactly one of any racing writers."""
         ...
@@ -107,6 +111,13 @@ class LocalArchive:
                 if key.startswith(prefix):
                     yield key
 
+    def list_objects(self, prefix: str) -> Iterator[tuple[str, int, str]]:
+        import hashlib
+
+        for key in self.list_keys(prefix):
+            data = self._path(key).read_bytes()
+            yield key, len(data), hashlib.md5(data, usedforsecurity=False).hexdigest()
+
 
 class S3Archive:
     def __init__(self, bucket: str, prefix: str, client: S3Client) -> None:
@@ -160,6 +171,12 @@ class S3Archive:
         for page in paginator.paginate(Bucket=self.bucket, Prefix=self._key(prefix)):
             for obj in page.get("Contents", []):
                 yield obj["Key"][len(self.prefix) :]
+
+    def list_objects(self, prefix: str) -> Iterator[tuple[str, int, str]]:
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=self._key(prefix)):
+            for obj in page.get("Contents", []):
+                yield obj["Key"][len(self.prefix) :], int(obj["Size"]), obj["ETag"].strip('"')
 
 
 def archive_from_uri(uri: str, s3_endpoint: str | None = None) -> Archive:

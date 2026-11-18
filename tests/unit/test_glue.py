@@ -70,3 +70,26 @@ def test_every_glue_task_imports_without_a_running_spark() -> None:
             [sys.executable, "-c", f"import {module}"], capture_output=True, text=True, timeout=120
         )
         assert done.returncode == 0, f"{module}: {done.stderr[-600:]}"
+
+
+def test_batch_cost_counts_only_the_nightly_chain() -> None:
+    """The first email reported $0.322: it counted a day of manual rebuilds as "last night"."""
+    from datetime import UTC, datetime, timedelta
+
+    from ghostbus_jobs.quality import scheduled_dpu_seconds
+
+    since = datetime(2026, 11, 19, 3, 0, tzinfo=UTC)
+    at = since + timedelta(hours=1)
+    runs = [
+        {"TriggerName": "ghostbus-nightly", "StartedOn": at, "DPUSeconds": 110.0},
+        {"TriggerName": "ghostbus-after-timetable", "StartedOn": at, "DPUSeconds": 430.0},
+        {"StartedOn": at, "DPUSeconds": 555.0},  # a manual rebuild: no trigger
+        {
+            "TriggerName": "ghostbus-nightly",
+            "StartedOn": since - timedelta(days=1),
+            "DPUSeconds": 99.0,
+        },
+        {"TriggerName": "ghostbus-after-reconcile", "StartedOn": at},  # still running: no DPU yet
+    ]
+    assert scheduled_dpu_seconds(runs, since) == 540.0
+    assert scheduled_dpu_seconds([{"StartedOn": at, "DPUSeconds": 555.0}], since) is None

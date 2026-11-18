@@ -139,20 +139,43 @@ resource "aws_iam_role" "glue" {
   assume_role_policy = data.aws_iam_policy_document.glue_assume.json
 }
 
-resource "aws_iam_role_policy_attachment" "glue_service" {
-  role       = aws_iam_role.glue.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
-}
+# No AWSGlueServiceRole: that AWS-managed policy grants glue:*, broad S3 and EC2 access. The jobs
+# need only what is listed in data.aws_iam_policy_document.glue (verified with a full Glue run).
 
 data "aws_iam_policy_document" "glue" {
   statement {
     sid       = "ReadArchive"
-    actions   = ["s3:ListBucket", "s3:GetObject"]
+    actions   = ["s3:ListBucket", "s3:GetObject", "s3:GetBucketLocation"]
     resources = [aws_s3_bucket.archive.arn, "${aws_s3_bucket.archive.arn}/raw/*"]
   }
   statement {
+    sid       = "SealArchiveDays"
+    actions   = ["s3:GetObject", "s3:PutObject"]
+    resources = ["${aws_s3_bucket.archive.arn}/provenance/*"]
+  }
+  statement {
+    sid = "GlueJobLogs"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:AssociateKmsKey",
+    ]
+    resources = ["arn:aws:logs:${var.region}:${local.account}:log-group:/aws-glue/*"]
+  }
+  statement {
+    sid       = "GlueJobMetrics"
+    actions   = ["cloudwatch:PutMetricData"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values   = ["Glue"]
+    }
+  }
+  statement {
     sid       = "WorkBucket"
-    actions   = ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    actions   = ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:GetBucketLocation"]
     resources = [aws_s3_bucket.work.arn, "${aws_s3_bucket.work.arn}/*"]
   }
   statement {
@@ -204,6 +227,24 @@ locals {
   }
 }
 
+# Glue writes temporary and output files with S3 server-side encryption. CloudWatch-log and
+# bookmark encryption would need a customer KMS key (about $1 a month each); logs hold no secrets
+# and bookmarks are unused.
+resource "aws_glue_security_configuration" "jobs" {
+  name = "ghostbus-jobs"
+  encryption_configuration {
+    cloudwatch_encryption {
+      cloudwatch_encryption_mode = "DISABLED"
+    }
+    job_bookmarks_encryption {
+      job_bookmarks_encryption_mode = "DISABLED"
+    }
+    s3_encryption {
+      s3_encryption_mode = "SSE-S3"
+    }
+  }
+}
+
 resource "aws_glue_job" "batch" {
   for_each          = local.glue_jobs
   name              = "ghostbus-${replace(each.key, "_", "-")}"
@@ -215,6 +256,8 @@ resource "aws_glue_job" "batch" {
   execution_class   = "FLEX" # spare capacity at about two thirds of the price; may start later
   timeout           = 60
   max_retries       = 0
+
+  security_configuration = aws_glue_security_configuration.jobs.name
 
   command {
     name            = "glueetl"
@@ -305,7 +348,10 @@ data "aws_iam_policy_document" "alerts_topic" {
     condition {
       test     = "ArnEquals"
       variable = "aws:SourceArn"
-      values   = [aws_cloudwatch_event_rule.glue_failed.arn]
+      values = concat(
+        [aws_cloudwatch_event_rule.glue_failed.arn],
+        [for r in aws_cloudwatch_event_rule.tripwire : r.arn],
+      )
     }
   }
   statement {

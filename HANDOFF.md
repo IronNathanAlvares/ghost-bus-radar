@@ -204,6 +204,16 @@ ARCHIVE_URI=file:///C:/Users/<you>/ghostbus-archive uv run python -m ghostbus_in
 - **Nobody can delete from `raw/`** in the archive bucket, admins included (bucket policy); all
   buckets refuse plain HTTP; CloudTrail `ghostbus-trail` logs management events for a year.
   The CLI access key needs rotating every 90 days (`docs/05-aws-setup.md` section 7).
+- **Security** (`docs/07-security.md`, diagrams in `docs/diagrams/08-security.md`):
+  - The archive is hash-chained daily (`provenance/`, sealed by the quality job; verify with
+    `python -m ghostbus_ingest.provenance verify`).
+  - Three tripwires email on: a key read by anyone but the poller, CloudTrail changes, and bucket
+    guardrail changes. They also fire on your own deploys, by design.
+  - CI's security job runs gitleaks, pip-audit (one triaged advisory) and checkov (triaged skips
+    in `.checkov.yaml`).
+  - **Root MFA was off on 18 November: turn it on.**
+- **Git Bash rewrites `/ghostbus/...` into a Windows path** in AWS CLI arguments (SSM names): prefix
+  `MSYS_NO_PATHCONV=1`.
 - **Never build a Spark `Column` at module level** (`F.col` at import time): Glue imports task
   modules before Spark starts. `tests/unit/test_glue.py` imports each task without Spark.
 - **NTA's realtime ids can lag a timetable publish** (76 minutes on 15 November): matching falls

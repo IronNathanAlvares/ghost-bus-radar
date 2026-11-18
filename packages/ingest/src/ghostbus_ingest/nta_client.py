@@ -53,6 +53,7 @@ class NtaClient:
     ) -> None:
         if not api_key:
             raise ValueError("NTA API key is empty")
+        self._key = api_key
         self._http = httpx.Client(
             headers={
                 "x-api-key": api_key,
@@ -73,7 +74,7 @@ class NtaClient:
                 http_status=None,
                 body=b"",
                 elapsed_ms=round((time.monotonic() - t0) * 1000),
-                error=f"{type(exc).__name__}: {exc}",
+                error=self._redact(f"{type(exc).__name__}: {exc}"),
             )
         elapsed_ms = round((time.monotonic() - t0) * 1000)
         status = FetchStatus.from_http(resp.status_code)
@@ -85,8 +86,14 @@ class NtaClient:
             body=b"",
             elapsed_ms=elapsed_ms,
             retry_after_s=_retry_after(resp.headers),
-            error=resp.text[:300],
+            error=self._redact(resp.text[:300]),
         )
+
+    def _redact(self, text: str) -> str:
+        """Error text is stored in heartbeats (S3, Kafka, logs). Nothing should ever echo the key,
+        but nothing guarantees it either: a proxy, an exception message or an NTA error page might.
+        So every stored error has the key removed (docs/07-security.md)."""
+        return text.replace(self._key, "[REDACTED]") if self._key else text
 
     def close(self) -> None:
         self._http.close()

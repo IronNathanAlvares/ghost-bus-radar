@@ -1,0 +1,38 @@
+# checkov (Terraform misconfiguration scanner), run in CI with a pinned version.
+# Every skip below was triaged on 18 November 2026; reasons are in docs/07-security.md, section 7.
+framework:
+  - terraform
+directory:
+  - infra/terraform
+compact: true
+quiet: true
+skip-check:
+  # Forbidden by the account's service control policies (single region, no multi-region features)
+  - CKV_AWS_67     # CloudTrail in all regions
+  - CKV_AWS_144    # S3 cross-region replication
+  # Customer-managed KMS keys: about $1/month each; SSE-S3 / AWS-managed encryption already applies,
+  # no regulated data. For SNS it would break delivery: EventBridge and CloudWatch cannot publish to
+  # a topic encrypted with the aws/sns key, so only a paid CMK with a custom key policy would work.
+  - CKV_AWS_145    # S3 default encryption with KMS
+  - CKV_AWS_158    # CloudWatch log group KMS
+  - CKV_AWS_35     # CloudTrail KMS
+  - CKV_AWS_26     # SNS topic encryption
+  - CKV_AWS_297    # EventBridge Scheduler CMK
+  - CKV_AWS_173    # Lambda environment variables: they hold only names, never secrets
+  - CKV_AWS_99     # Glue security configuration encrypting CloudWatch logs and bookmarks
+  # Deliberate design (ADR-0009)
+  - CKV_AWS_117    # Lambda in a VPC: no private resources to reach; a NAT would cost about $35/month
+  - CKV_AWS_115    # Lambda reserved concurrency: not available on this account; the S3 conditional
+                   # write already guarantees one call per minute (tests/unit/test_lambda_poller.py)
+  - CKV_AWS_116    # Lambda DLQ: a missed minute is recorded in the heartbeats and never retried
+  - CKV_AWS_50     # X-Ray tracing: logs and the Collected metric are enough at this size
+  - CKV_AWS_338    # Log retention of 1 year: 14 days by choice; CloudTrail keeps the audit trail a year
+  - CKV_AWS_21     # Versioning on the work bucket: scratch files, all rebuildable
+  - CKV_AWS_18     # S3 server access logs: CloudTrail covers management events; data-event logging
+                   # is out of budget; the archive is protected by deny-delete and the hash chain
+  - CKV2_AWS_62    # S3 event notifications: nothing consumes them
+  - CKV2_AWS_10    # CloudTrail to CloudWatch Logs: tripwires use EventBridge instead, at no cost
+  - CKV_AWS_252    # CloudTrail SNS topic: same reason
+  # Planned (roadmap 4.4)
+  - CKV_AWS_272    # Lambda code signing: builds are reproducible and hash-checked today; AWS Signer
+                   # is the next step

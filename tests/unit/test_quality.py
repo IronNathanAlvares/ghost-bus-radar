@@ -88,3 +88,12 @@ def test_the_email_says_fail_in_the_subject_and_why() -> None:
     subject, body = render(HEALTHY, evaluate(HEALTHY))
     assert subject == "Ghost Bus Radar Thu 19 Nov: OK, ran 89.3%"
     assert "Bus Éireann 101: 14 / 60" in body and "$0.041" in body
+
+
+def test_a_tampered_archive_fails_the_day() -> None:
+    ok = replace(HEALTHY, archive_days_verified=4, chain_head="ab" * 32)
+    assert status(ok, "archive_integrity") == OK
+    bad = replace(ok, archive_failures=["2026-11-16: archive changed since sealed"])
+    assert status(bad, "archive_integrity") == FAIL
+    _, body = render(ok, evaluate(ok))
+    assert "Archive chain head" in body and "ab" * 32 in body
