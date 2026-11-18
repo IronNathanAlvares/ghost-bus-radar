@@ -39,6 +39,7 @@ locals {
   archive_bucket = "ghostbus-archive-${local.account}"
   nta_key_arn    = "arn:aws:ssm:${var.region}:${local.account}:parameter${var.nta_key_parameter}"
   collector_zip  = "${path.module}/../../lambda/dist/collector.zip"
+  api_zip        = "${path.module}/../../lambda/dist/api.zip"
 }
 
 output "archive_bucket" {

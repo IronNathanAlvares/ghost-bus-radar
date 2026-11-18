@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ghostbus.stop_index_pointer.v1",
+  "description": "api/v1/current.json: the stop-index build the API reads. Written last, after every shard (ADR-0012).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "build",
+    "shards",
+    "feed_versions",
+    "stops",
+    "departures",
+    "first_departure",
+    "last_departure",
+    "valid_until"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ghostbus.stop_index_pointer.v1"
+    },
+    "build": {
+      "type": "string",
+      "pattern": "^\\d{8}T\\d{6}Z$"
+    },
+    "shards": {
+      "const": 256
+    },
+    "feed_versions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stops": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "departures": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "first_departure": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        }
+      ]
+    },
+    "last_departure": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        }
+      ]
+    },
+    "valid_until": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+        }
+      ]
+    }
+  }
+}

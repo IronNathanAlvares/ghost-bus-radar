@@ -119,6 +119,9 @@ class Counts:
             "trips_in_rates": self.n,
             "ran": rate(self.ran, self.n),
             "untracked": rate(self.ghost + self.phantom, self.n),
+            # The two parts of untracked, for the API's probability (ADR-0012). Additive: v1.
+            "ghost": rate(self.ghost, self.n),
+            "phantom": rate(self.phantom, self.n),
             "vanished": rate(self.vanished, self.n),
             "cancelled_early": rate(self.cancelled_early, self.n),
             "cancelled_late": rate(self.cancelled_late, self.n),

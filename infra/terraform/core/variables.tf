@@ -52,3 +52,15 @@ variable "glue_workers" {
   default     = 2
   description = "G.1X workers per Glue job (2 is the minimum). Each costs $0.29 an hour on Flex."
 }
+
+variable "api_rate_limit" {
+  description = "API requests per second across all callers (steady state)"
+  type        = number
+  default     = 10
+}
+
+variable "api_burst_limit" {
+  description = "API requests allowed in a burst above the steady rate"
+  type        = number
+  default     = 20
+}

@@ -58,6 +58,11 @@ Sprint 4 added trip outcomes (`docs/03-ghost-definition.md`, ADR-0008):
   - **Public data export** (ADR-0011): `ghostbus-export` runs after `ghostbus-quality` and writes
     `s3://ghostbus-site-<account-id>/data/v1/` (meta, days, league, routes, stops). Only days that
     passed the quality gates are counted; until one does, the league is empty by design.
+  - **"Will my bus come?" API** (ADR-0012): `GET <api_url>/v1/stops/{code}/departures`
+    (`terraform output api_url`). Lambda `ghostbus-api` reads the stop index
+    (`ghostbus-api-index`, nightly after `timetable-load`, writes `s3://ghostbus-work-<account-id>/api/v1/`),
+    the newest archived snapshots and the published route files. It never calls the NTA.
+    Probabilities stay `null` until a route has a day that passed the quality gates.
   - **What's next:** `docs/06-roadmap.md`. Phase 0 is in progress: the code is on GitHub
     (`IronNathanAlvares/ghost-bus-radar`, public), and the archive guardrails and CloudTrail are live.
 - The field check needs a person at a bus stop.

@@ -22,6 +22,9 @@ EXPORT = {
     "stops.json": "export_stops.v1.json",
     "meta.json": "export_meta.v1.json",
 }
+#: The "will my bus come?" API (ADR-0012)
+DEPARTURES = "api_departures.v1.json"
+STOP_INDEX_POINTER = "api_stop_index_pointer.v1.json"
 
 
 def load(filename: str) -> dict[str, object]:

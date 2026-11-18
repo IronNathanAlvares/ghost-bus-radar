@@ -53,6 +53,12 @@
     "untracked": {
       "$ref": "#/$defs/rate"
     },
+    "ghost": {
+      "$ref": "#/$defs/rate"
+    },
+    "phantom": {
+      "$ref": "#/$defs/rate"
+    },
     "vanished": {
       "$ref": "#/$defs/rate"
     },

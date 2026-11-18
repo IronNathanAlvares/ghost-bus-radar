@@ -1,9 +1,9 @@
 [project]
 name = "ghostbus-api"
 version = "0.1.0"
-description = "Lambda API behind API Gateway"
+description = "Will my bus come? Lambda API behind API Gateway (ADR-0012)"
 requires-python = ">=3.11,<3.12"
-dependencies = ["ghostbus-core"]
+dependencies = ["ghostbus-core", "ghostbus-ingest", "tzdata>=2025.2"]
 
 [build-system]
 requires = ["uv_build>=0.11,<0.12"]
@@ -11,3 +11,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 ghostbus-core = { workspace = true }
+ghostbus-ingest = { workspace = true }

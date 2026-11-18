@@ -9,7 +9,11 @@ the live stream on every column of 10,528 trips, and a simulated outage produced
 First evening: 8.6% of fully collected bus trips untracked (95% CI 6.9-10.7), field check
 pending. Collecting live NTA data since 15 November 2026. Sprint 5: collection runs in AWS since
 18 November (Lambda, S3), and a nightly Glue job writes final outcomes to S3 Tables for Athena,
-for a few dollars a month (ADR-0009, ADR-0010). How it all works, as diagrams:
+for a few dollars a month (ADR-0009, ADR-0010). Product: a nightly public JSON export counting only
+days that passed the quality gates (ADR-0011), and a **"will my bus come?" API**,
+`GET /v1/stops/{code}/departures`, with each bus's live status and a probability, served from the
+archive without streaming at a gateway p95 of 323 ms (ADR-0012,
+[measurement 06](docs/measurements/06-api.md)). How it all works, as diagrams:
 [`docs/diagrams/`](docs/diagrams/README.md). See [`PLAN.md`](PLAN.md) for the design,
 [`SPRINTS.md`](SPRINTS.md) for progress, [`HANDOFF.md`](HANDOFF.md) to pick it up cold.
 Research and sources: [`docs/01-research.md`](docs/01-research.md). Decisions: [`docs/adr/`](docs/adr/).
@@ -89,7 +93,7 @@ job runs.
 | `packages/core` | Pure logic shared by stream, batch and API: feeds and schedule, protobuf normaliser, archive layout, JSON Schemas. No Spark imports |
 | `packages/ingest` | Poller, static watcher, archive, Kafka admin, feed profile |
 | `packages/jobs` | Spark entry points |
-| `packages/api` | Lambda API |
+| `packages/api` | "Will my bus come?" Lambda API (ADR-0012) |
 | `local/` | Docker Compose stack and Spark image |
 | `tests/` | Unit tests (host) and integration tests (inside the stack) |
 

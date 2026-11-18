@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ghostbus.departures.v1",
+  "description": "GET /v1/stops/{code}/departures: the next buses at a stop, their live status and the probability each one comes (ADR-0012).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "attribution",
+    "stop",
+    "generated_at",
+    "window_minutes",
+    "live",
+    "model",
+    "departures"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ghostbus.departures.v1"
+    },
+    "attribution": {
+      "$ref": "#/$defs/attribution"
+    },
+    "stop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "name",
+        "lat",
+        "lon"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "window_minutes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "live": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "trip_updates_at",
+        "vehicles_at",
+        "age_s"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "fresh",
+            "stale",
+            "unavailable"
+          ]
+        },
+        "trip_updates_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+            }
+          ]
+        },
+        "vehicles_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+            }
+          ]
+        },
+        "age_s": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        }
+      }
+    },
+    "model": {
+      "type": "string"
+    },
+    "departures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "route",
+          "agency",
+          "headsign",
+          "scheduled",
+          "expected",
+          "delay_s",
+          "status",
+          "probability",
+          "basis",
+          "matched_by",
+          "trip_id",
+          "route_slug"
+        ],
+        "properties": {
+          "route": {
+            "type": "string"
+          },
+          "agency": {
+            "type": "string"
+          },
+          "headsign": {
+            "type": "string"
+          },
+          "scheduled": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+          },
+          "expected": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+              }
+            ]
+          },
+          "delay_s": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "cancelled",
+              "skips_stop",
+              "tracked",
+              "assigned",
+              "scheduled",
+              "no_live_data"
+            ]
+          },
+          "probability": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            ]
+          },
+          "basis": {
+            "type": "object"
+          },
+          "matched_by": {
+            "enum": [
+              null,
+              "trip_id",
+              "route_and_start_time"
+            ]
+          },
+          "trip_id": {
+            "type": "string"
+          },
+          "route_slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "attribution": {
+      "type": "object",
+      "required": [
+        "source",
+        "source_url",
+        "licence",
+        "disclaimer"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "source_url": {
+          "type": "string"
+        },
+        "licence": {
+          "const": "CC BY 4.0"
+        },
+        "disclaimer": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

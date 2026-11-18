@@ -8,8 +8,8 @@ this repository.
 ## 8.1 Trust boundaries (where an attacker could stand)
 
 **Say it in one breath:** data crosses five boundaries, from NTA to AWS, from the laptop to AWS,
-between services, from GitHub to the world, and from AWS's organization rules into our account;
-every arrow has a control on it.
+between services, from GitHub to the world, and from the public internet to the API (8.10), all
+inside AWS's organization rules; every arrow has a control on it.
 
 ```mermaid
 flowchart TB
@@ -249,6 +249,40 @@ flowchart LR
 
 ---
 
+## 8.10 The public API's edge (boundary B5)
+
+**Say it in one breath:** anyone on the internet can call the API, so every layer between them
+and the data narrows what they can do: the edge limits how much, the code limits what, and the
+role limits where, and the data they can reach is public anyway.
+
+```mermaid
+flowchart TB
+    PUB["anyone on the internet"] --> GW
+    subgraph GW["API Gateway (HTTP API)"]
+        G1["two GET routes only;<br/>everything else 404"]
+        G2["throttle 10/s, burst 20:<br/>caps abuse and the bill"]
+        G3["access log: route, status, latency;<br/>no caller IP"]
+    end
+    GW --> FN
+    subgraph FN["Lambda ghostbus-api"]
+        F1["stop code ^[0-9A-Za-z]{1,12}$;<br/>bounded numbers; unknown params 400"]
+        F2["code never becomes a path:<br/>crc32 picks the shard"]
+        F3["errors say what, never<br/>a stack trace"]
+    end
+    FN --> RO
+    subgraph RO["IAM role ghostbus-api"]
+        R1["GetObject on three prefixes;<br/>ListBucket limited by s3:prefix"]
+        R2["no writes, no secrets,<br/>no NTA calls"]
+    end
+    RO --> DATA[("public-grade data only:<br/>timetable index, live snapshots,<br/>published route history")]
+```
+
+**Interviewer asks**
+- *Walk me through what stops a malicious request.* The gateway refuses any route but two and
+  throttles everyone together; the Lambda refuses any input that isn't a short alphanumeric code
+  or a bounded number; even a bug past both runs under a role that can only read public-grade data.
+  Questions 31 to 36 below go into each layer.
+
 ## Question bank
 
 Short, honest answers you can give, each tied to something you can show.
@@ -363,3 +397,34 @@ Short, honest answers you can give, each tied to something you can show.
     published fake data to the live Kafka topics, including fake "collected" heartbeats that could
     have hidden real outages. Found by an archive-vs-lake comparison, fixed by isolating test topics,
     and now checked by `lake_audit`.
+
+### The public API (roadmap 2.3)
+
+31. **Your API has no authentication. Why is that acceptable?** It serves public, read-only open
+    data, the same as the website. Authentication answers "who are you?"; there is nothing here
+    that depends on who asks. The real risks are abuse and cost, so the controls are throttling at
+    the edge (10 requests a second, bursts of 20, so the worst case is a known number of cents),
+    strict input validation, and a Lambda role that can only read three S3 prefixes. If keys were
+    ever needed (per-client quotas), API Gateway usage plans would come before writing any auth code.
+32. **What could an attacker do with the API's role if the Lambda were compromised?** Read the
+    newest live snapshots, the stop index and the route files: all data the public gets anyway.
+    It cannot write anything, cannot list other prefixes (`ListBucket` is limited with an
+    `s3:prefix` condition), and cannot read the NTA key. Least privilege turns "compromised" into
+    "embarrassing", not "breach".
+33. **How do you validate input?** A stop code must match `^[0-9A-Za-z]{1,12}$` before it touches
+    anything; `minutes` and `limit` must be whole numbers in a range; unknown parameters are
+    refused with a 400 and a message. The code never builds an S3 key from raw input: it becomes a
+    shard number through `crc32`, so path tricks like `../` have nothing to reach.
+34. **Do you log IP addresses?** No. Under GDPR an IP address is personal data, and nothing here
+    needs it. The access log records the route, path, status and latency; the Lambda logs one line
+    per request with the stop code only if it is valid, so nothing a caller types reaches the logs
+    unchecked (no log injection).
+35. **Why is CORS set to `*`? Isn't that insecure?** CORS protects users' credentials from other
+    sites. This API takes no credentials and no cookies and allows GET only, so any origin may read
+    it, which is the point of open data. `*` would be wrong on an API that used cookies.
+36. **What happens when your data is old or missing?** The answer says so instead of guessing: live
+    data older than 5 minutes is labelled `stale`, older than 15 minutes is not used (every bus shows
+    `no_live_data`); an expired index is a 503 with the reason; a route with no published history has
+    probability `null` with the reason. Failing loudly is a security property too: a confident
+    wrong answer is how people get misled.
+

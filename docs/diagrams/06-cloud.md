@@ -89,6 +89,70 @@ flowchart TD
 - *How would you change the format without breaking the website?* Never in place: every file
   says `ghostbus.<kind>.v1` and validates against a JSON Schema; a breaking change is `data/v2/`.
 
+## 6.1c "Will my bus come?" (the API)
+
+**Say it in one breath:** a Lambda behind an HTTP API answers "what's coming to my stop, and
+will it really come?" from three files in S3: the stop's timetable (a nightly index), the newest
+live snapshot the poller already archived, and the route's published history. It never calls
+the NTA, and a warm request usually makes one S3 list call and nothing else.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Passenger app
+    participant G as API Gateway (HTTP API)
+    participant L as Lambda ghostbus-api
+    participant W as S3 work: api/v1/
+    participant A as S3 archive: raw/
+    participant S as S3 site: data/v1/routes/
+    U->>G: GET /v1/stops/1358/departures
+    G->>G: throttle (10/s, burst 20)
+    G->>L: invoke
+    L->>L: validate the stop code and parameters
+    L->>W: current.json, then shard crc32(1358) mod 256 (cached)
+    L->>A: list this hour, newest TripUpdates + Vehicles (cached per snapshot)
+    L->>S: routes/{slug}.json for each route (cached 1 h)
+    L->>L: match, status, expected time, probability
+    L-->>U: 200, ghostbus.departures.v1 (cache 30 s)
+```
+
+How each departure gets its status and probability (ADR-0012):
+
+```mermaid
+flowchart TD
+    D["scheduled departure<br/>in the window"] --> F{"live feed under<br/>15 min old?"}
+    F -->|"no"| N["no_live_data<br/>p = ran / n"]
+    F -->|"yes"| M["match: trip id, else<br/>route + direction + date + start"]
+    M --> C{"CANCELED, or this<br/>stop SKIPPED?"}
+    C -->|"yes"| Z["cancelled / skips_stop<br/>p = 0"]
+    C -->|"no"| P{"vehicle reporting<br/>positions?"}
+    P -->|"yes, and past the stop"| X["dropped: already gone"]
+    P -->|"yes"| T["tracked<br/>rules out ghost, phantom, early cancel"]
+    P -->|"no"| V{"vehicle named?"}
+    V -->|"yes"| AS["assigned<br/>rules out ghost, early cancel"]
+    V -->|"no"| SC["scheduled<br/>under 15 min away: rules out early cancel"]
+    T --> H["p = this hour's history,<br/>shrunk toward the route's rate (20 trips)"]
+    AS --> H
+    SC --> H
+```
+
+**Interviewer asks**
+- *Why not stream to the API?* Streaming costs money every hour whether anyone asks or not. The
+  poller already writes a snapshot every two minutes, and a snapshot decodes in 6 ms, so the API
+  reads the newest one. The answer is at most one poll old, which is how old the data is anyway.
+- *How do you hit p95 under 500 ms with S3 behind it?* Caching in the Lambda container: the index
+  pointer for 5 minutes, shards and route files until they change, each live snapshot decoded once.
+  A warm request is usually one S3 list call. Measured: `docs/measurements/06-api.md`.
+- *Why shard the index?* 770,000 departures a day: one file per stop would be 10,000 uploads a
+  night; one file would be tens of MB per request. 256 shards by `crc32(code)` is about 260 uploads
+  and a ~100 KB read. `crc32`, not Python's `hash()`, which changes between processes.
+- *What happens while the nightly index is being written?* Nothing visible: shards go under a new
+  build prefix and the pointer `current.json` is written last, so readers switch from one complete
+  build to the next (the same idea as a blue/green deploy, for data).
+- *Is the probability any good?* It is a stated heuristic (`heuristic-v1`), not yet a measured one.
+  Roadmap 2.4 scores it on held-out days (Brier score, reliability diagram) before it is trusted.
+  Until a route has published history it answers `null` with the reason, never a guess.
+
 ## 6.2 Who may do what (least privilege)
 
 **Say it in one breath:** every component has its own IAM role with only the actions it needs on
@@ -104,8 +168,9 @@ flowchart TB
             RW["role ghostbus-static-watcher:<br/>Get/Put raw/feed=static/* only"]
             RS["role ghostbus-scheduler:<br/>InvokeFunction on the two Lambdas"]
             RG["role ghostbus-glue:<br/>read archive raw/*; work bucket;<br/>s3tables:* on ghostbus-lake only"]
+            RA["role ghostbus-api:<br/>read-only: live snapshots, stop index,<br/>route files; no secret, no writes"]
             ME ~~~ RP ~~~ RW
-            RS ~~~ RG
+            RS ~~~ RG ~~~ RA
         end
     end
     SCP -.->|"caps every principal,<br/>even admins"| ACCT

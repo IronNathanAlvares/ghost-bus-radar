@@ -370,3 +370,39 @@ def test_export_end_to_end_on_the_synthetic_week(
         assert (written, unchanged) == (0, len(docs))
     finally:
         spark.sql(f"DROP TABLE IF EXISTS {qt} PURGE")
+
+
+def test_api_index_and_the_api_on_real_spark_tables(
+    result: tuple[SparkSession, Dim, dict[tuple[date, str], dict[str, object]]], tmp_path: Path
+) -> None:
+    """The nightly stop index from real dim tables, read back by the API Lambda: buses only, no
+    departure from a trip's last stop, GTFS times past 24:00 on the right morning, and the trip
+    ids of the version that defines each day (v2 from 15 November)."""
+    import jsonschema
+
+    from ghostbus_api.handler import Sources, departures
+    from ghostbus_core import schemas
+    from ghostbus_core.departures import POINTER_KEY, read_shard, shard_key, shard_of
+    from ghostbus_jobs.api_index import run as build_index
+
+    spark, dim, _ = result
+    target = LocalArchive(tmp_path / "api")
+    docs = build_index(spark, date(2026, 11, 16), target, build="20261116T042000Z", dim=dim)
+    pointer = json.loads(docs[POINTER_KEY])
+    jsonschema.validate(pointer, schemas.load(schemas.STOP_INDEX_POINTER))
+    # Mon 16 and Tue 17: 46A 08:00 (S1, S2), 46A 24:30 (S1), route 7 07:00 (S4). S3 is only ever
+    # a last stop; rail and Luas are out of scope.
+    assert (pointer["stops"], pointer["departures"]) == (3, 8)
+    assert pointer["valid_until"] == "2026-11-18T04:00:00Z"  # Wed 18 Nov, the first day not covered
+    _, deps = read_shard(docs[shard_key("20261116T042000Z", shard_of("101"))])
+    s1 = sorted((d.at, d.trip.route, d.trip.trip_id, d.trip.start_time) for d in deps["101"])
+    first = int(at(date(2026, 11, 16), "08:00").timestamp())
+    late = int(at(date(2026, 11, 17), "00:30").timestamp())
+    assert s1[:2] == [(first, "46A", "v2_0", "08:00:00"), (late, "46A", "v2_1", "24:30:00")]
+    assert (tmp_path / "api" / POINTER_KEY).exists()
+
+    empty = LocalArchive(tmp_path / "nothing")
+    src = Sources(target, empty, empty, clock=lambda: first - 300)
+    body = departures({"pathParameters": {"code": "101"}}, src)
+    jsonschema.validate(body, schemas.load(schemas.DEPARTURES))
+    assert [(r["route"], r["status"]) for r in body["departures"]] == [("46A", "no_live_data")]

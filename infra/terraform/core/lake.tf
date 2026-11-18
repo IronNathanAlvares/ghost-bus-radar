@@ -105,6 +105,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "work" {
       days_after_initiation = 1
     }
   }
+  # Stop-index builds (ADR-0012): the API reads the newest through api/v1/current.json.
+  rule {
+    id     = "api-index-builds"
+    status = "Enabled"
+    filter {
+      prefix = "api/v1/builds/"
+    }
+    expiration {
+      days = 3
+    }
+  }
 }
 
 resource "aws_s3_object" "glue_entry" {
@@ -225,12 +236,14 @@ locals {
     "--STATIC_STAGE_URI" = "s3://${aws_s3_bucket.work.bucket}/tmp/static/"
     "--ALERTS_TOPIC_ARN" = aws_sns_topic.alerts.arn
     "--EXPORT_URI"       = "s3://${aws_s3_bucket.site.bucket}/data/v1/"
+    "--API_INDEX_URI"    = "s3://${aws_s3_bucket.work.bucket}/api/v1/"
   }
   glue_jobs = {
     timetable_load = "Load new static GTFS versions from the archive into lake.dim (SCD2)"
     reconcile      = "Final trip outcomes for yesterday from the raw archive (backfill: --ARGS)"
     quality        = "Data-quality checks for yesterday into gold.data_quality, and the summary email"
     export         = "Public JSON for the website (data/v1), only from days that passed the quality gates"
+    api_index      = "Stop index for the API: every bus departure today and tomorrow, 256 shards (ADR-0012)"
   }
 }
 
@@ -304,6 +317,11 @@ resource "aws_glue_trigger" "after_timetable" {
 
   actions {
     job_name = aws_glue_job.batch["reconcile"].name
+  }
+
+  # In parallel with reconcile: the API only needs the timetable, so its index is fresh early.
+  actions {
+    job_name = aws_glue_job.batch["api_index"].name
   }
 }
 
