@@ -22,6 +22,7 @@ EXPORT = {
     "stops.json": "export_stops.v1.json",
     "meta.json": "export_meta.v1.json",
     "calibration.json": "export_calibration.v1.json",
+    "model.json": "export_model.v1.json",
 }
 #: The "will my bus come?" API (ADR-0012)
 DEPARTURES = "api_departures.v1.json"

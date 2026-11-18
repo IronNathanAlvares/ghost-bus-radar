@@ -40,6 +40,7 @@ class Prediction:
     p: float | None  # None: no history for this route yet (counted, not scored)
     y: int  # 1 if the trip ran
     base_rate: float  # the history window's share of trips that ran (the base-rate baseline)
+    p_previous: float | None = None  # the previous model's answer, for the comparison
 
 
 def brier(pairs: Iterable[tuple[float, int]]) -> float | None:
@@ -79,7 +80,23 @@ def summary(preds: Sequence[Prediction]) -> dict[str, Any]:
         "skill_vs_always_comes": _r(_skill(b_model, b_always)),
         "skill_vs_base_rate": _r(_skill(b_model, b_base)),
         "calibration_error": _r(calibration_error(scored)),
+        "decomposition": murphy(scored),
     }
+
+
+def murphy(preds: Sequence[Prediction], n_bins: int = BINS) -> dict[str, float | None]:
+    """Murphy's split of the Brier score (binned): reliability - resolution + uncertainty.
+    Reliability is the calibration penalty (lower is better); resolution is how well the model
+    tells trips apart (higher is better); uncertainty is the base-rate score, the same for every
+    model. Binned estimates of the first two are slightly biased upward on small samples."""
+    rows = bins(preds, n_bins)
+    n = sum(r["n"] for r in rows)
+    if not n:
+        return {"reliability": None, "resolution": None, "uncertainty": None}
+    obar = sum(r["n"] * float(r["share_ran"]) for r in rows) / n
+    rel = sum(r["n"] * (float(r["mean_predicted"]) - float(r["share_ran"])) ** 2 for r in rows) / n
+    res = sum(r["n"] * (float(r["share_ran"]) - obar) ** 2 for r in rows) / n
+    return {"reliability": _r(rel), "resolution": _r(res), "uncertainty": _r(obar * (1 - obar))}
 
 
 def bins(preds: Sequence[Prediction], n_bins: int = BINS) -> list[dict[str, Any]]:
@@ -121,8 +138,10 @@ def calibration_doc(
     model: str,
     generated_at: str,
     window_days: int = WINDOW_DAYS,
+    previous_model: str | None = None,
 ) -> dict[str, Any]:
-    """``data/v1/calibration.json``: overall, by lead time and by live status, plus reliability."""
+    """``data/v1/calibration.json``: overall, by lead time and by live status, plus reliability.
+    With ``previous_model``, the previous model is scored on exactly the same predictions."""
     days = sorted({x.service_date for x in preds})
     by_lead: dict[int, list[Prediction]] = defaultdict(list)
     by_status: dict[str, list[Prediction]] = defaultdict(list)
@@ -130,6 +149,19 @@ def calibration_doc(
         by_lead[x.lead_min].append(x)
         by_status[x.status].append(x)
     overall = summary(preds)
+    both = [x for x in preds if x.p is not None and x.p_previous is not None]
+    comparison = None
+    if previous_model and both:
+        prev = [
+            Prediction(x.service_date, x.lead_min, x.status, x.p_previous, x.y, x.base_rate)
+            for x in both
+        ]
+        comparison = {
+            "previous_model": previous_model,
+            "predictions": len(both),
+            "current": summary(both),
+            "previous": summary(prev),
+        }
     return {
         "schema": f"ghostbus.calibration.{SCHEMA_VERSION}",
         "attribution": ATTRIBUTION,
@@ -154,6 +186,7 @@ def calibration_doc(
             {"status": s} | summary(by_status[s])
             for s in sorted(by_status, key=lambda s: -len(by_status[s]))
         ],
+        "comparison": comparison,
     }
 
 

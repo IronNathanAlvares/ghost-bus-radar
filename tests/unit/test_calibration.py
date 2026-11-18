@@ -98,3 +98,22 @@ def test_scores_stay_in_range(rows: list[tuple[float, int, float]]) -> None:
     for key in ("skill_vs_always_comes", "skill_vs_base_rate"):
         assert s[key] is None or s[key] <= 1
     assert sum(r["n"] for r in bins(preds)) == len(preds)
+
+
+def test_murphy_decomposition_and_the_comparison_with_the_previous_model() -> None:
+    # Current model: sharp and right. Previous: always 0.8 (no resolution).
+    preds = [Prediction(D, 5, "tracked", 0.95, 1, 0.8, p_previous=0.8) for _ in range(8)] + [
+        Prediction(D, 5, "scheduled", 0.1, 0, 0.8, p_previous=0.8) for _ in range(2)
+    ]
+    doc = calibration_doc(
+        preds, "heuristic-v2", "2026-11-19T05:00:00Z", previous_model="heuristic-v1"
+    )
+    jsonschema.validate(doc, schemas.load(schemas.EXPORT["calibration.json"]))
+    cur, prev = doc["comparison"]["current"], doc["comparison"]["previous"]
+    assert cur["brier"] < prev["brier"]
+    assert (
+        prev["decomposition"]["resolution"] == 0.0
+    )  # one forecast for everyone tells nobody apart
+    assert cur["decomposition"]["resolution"] > 0
+    assert cur["decomposition"]["uncertainty"] == pytest.approx(0.16)
+    assert calibration_doc(preds, "m", "2026-11-19T05:00:00Z")["comparison"] is None

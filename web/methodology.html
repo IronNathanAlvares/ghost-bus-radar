@@ -110,10 +110,20 @@
       live feed already shows is taken into account: a bus tracked live cannot be a ghost, so its chance
       is higher; a bus given a vehicle cannot be a ghost either; close to departure, a cancellation with
       notice would already have been announced. Hours with few trips lean on the route's overall record.</p>
-    <p>This is model <code>heuristic-v1</code>: built on stated assumptions, and checked every night
-      against what actually happened, on days it was not built from:
-      <a href="#calibration">how good it has been so far</a>. Read it as a guide, not a promise. When a
-      route has no published history yet, we say so instead of showing a number.</p>
+    <p id="model-v2">This is model <code>heuristic-v2</code>, rebuilt after the first checks below
+      showed what was wrong with version 1:</p>
+    <ul>
+      <li><strong>Few trips, modest claims.</strong> An hour's record is blended with its route's, and a
+        route's with the whole network's. How much to blend is worked out from the data each night:
+        the more routes really differ, the more each route's own record counts. Five buses that all ran
+        no longer mean "100%".</li>
+      <li><strong>"Cancelled" isn't always gone.</strong> Some operators' cancelled buses often still
+        run (for one operator, more than half did). A cancelled bus gets that operator's record, not 0%.</li>
+      <li><strong>No history is not no answer.</strong> A route we have no record of yet gets the
+        network-wide figure.</li>
+    </ul>
+    <p>It is still checked every night against what actually happened, on days it was not built from:
+      <a href="#calibration">how good it has been so far</a>. Read it as a guide, not a promise.</p>
 
     <h2 id="calibration">How good is the chance?</h2>
     <p>Every night we check the chance against what happened, on days the model never saw. For each

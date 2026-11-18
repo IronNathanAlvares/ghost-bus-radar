@@ -151,7 +151,7 @@ latency p50 46 s, p95 47 s at a 30 s trigger; every micro-batch under 1 s. See
 | DynamoDB live trip state written from `trip_state` | replaced: the API reads the newest archived snapshot instead, no stream or table needed (ADR-0012) |
 | API: departures by stop plate code, health (`ghostbus-api`, HTTP API; route reliability is in the public export) | done 18 Nov (ADR-0012) |
 | "Will it come?" probability: history by route x day type x trip-start hour, shrunk toward the route (20-trip prior), conditioned on live status (`heuristic-v1`) | done 18 Nov; probabilities appear once a day passes the quality gates |
-| Calibration on held-out days: Brier score + reliability diagram | done 18 Nov (ADR-0014): walk-forward backtest nightly; beats "always comes" (+7%), loses to the base rate (−8%); findings in measurement 08 |
+| Calibration on held-out days: Brier score + reliability diagram | done 18 Nov (ADR-0014): walk-forward backtest nightly; beats "always comes" (+7%), loses to the base rate (−8%); findings in measurement 08. heuristic-v2 19 Nov (ADR-0015, measurement 09): beats both |
 | Website: league table, route page, stop lookup, heatmaps, methodology, NTA attribution | done 18 Nov (ADR-0013); Lighthouse 99-100 on every page and category |
 | Daily JSON export so the site works when the cluster is parked | done 18 Nov (ADR-0011) |
 

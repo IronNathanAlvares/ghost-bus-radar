@@ -60,13 +60,13 @@ data "aws_iam_policy_document" "api" {
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
-      values   = ["data/v1/routes/*"]
+      values   = ["data/v1/routes/*", "data/v1/model.json"]
     }
   }
   statement {
     sid       = "ReadRouteHistory"
     actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.site.arn}/data/v1/routes/*"]
+    resources = ["${aws_s3_bucket.site.arn}/data/v1/routes/*", "${aws_s3_bucket.site.arn}/data/v1/model.json"]
   }
   statement {
     sid       = "Logs"

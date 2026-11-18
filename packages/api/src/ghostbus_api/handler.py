@@ -39,6 +39,7 @@ from ghostbus_core.departures import (
     shard_key,
     shard_of,
 )
+from ghostbus_core.model import Model
 from ghostbus_ingest.archive import Archive, archive_from_uri, decompress
 
 log = logging.getLogger("ghostbus.api")
@@ -95,6 +96,7 @@ class Sources:
         self._decoded: dict[str, tuple[str, pb.FeedMessage | None]] = {}
         self._history: OrderedDict[str, tuple[float, RouteHistory | None]] = OrderedDict()
         self._live: tuple[tuple[str | None, str | None], Live] | None = None
+        self._model: tuple[float, Model | None] | None = None
         #: Per-stage timings of the last request, for the request log line.
         self.stages: dict[str, float] = {}
         self.s3_reads = 0
@@ -207,6 +209,15 @@ class Sources:
                 self._history.popitem(last=False)
         return out
 
+    def model(self) -> Model | None:
+        """The fitted model (``data/v1/model.json``, heuristic-v2), refreshed hourly. Without it
+        (before the first export) the API answers with heuristic-v1."""
+        now = self.clock()
+        if self._model is None or now - self._model[0] > HISTORY_TTL_S:
+            raw = self._get(self.site, "model.json")
+            self._model = (now, Model.from_doc(json.loads(raw)) if raw else None)
+        return self._model[1]
+
     def _fetch_history(self, slug: str) -> RouteHistory | None:
         raw = self._get(self.site, f"routes/{slug}.json")
         return history_from_route_doc(json.loads(raw)) if raw else None
@@ -259,7 +270,7 @@ def departures(event: Mapping[str, Any], src: Sources) -> dict[str, Any]:
     live = src.live()
     stages["live"] = _ms(t)
     t = time.perf_counter()
-    body = departures_doc(stop, deps, live, history, now, minutes, limit)
+    body = departures_doc(stop, deps, live, history, now, minutes, limit, src.model())
     stages["answer"] = _ms(t)
     return body
 

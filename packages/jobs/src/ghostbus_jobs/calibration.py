@@ -33,7 +33,6 @@ from ghostbus_core.calibration import (
 )
 from ghostbus_core.departures import (
     MAX_LIVE_AGE_S,
-    MODEL,
     Departure,
     RouteHistory,
     Trip,
@@ -42,6 +41,7 @@ from ghostbus_core.departures import (
 )
 from ghostbus_core.export import route_doc, slug
 from ghostbus_core.lake import LakeSettings
+from ghostbus_core.model import NAME, Model, fit
 from ghostbus_core.timetable import LOCAL_TZ
 from ghostbus_ingest.archive import Archive, archive_from_uri
 from ghostbus_jobs.export import gather_cells, publish
@@ -53,11 +53,14 @@ from ghostbus_jobs.spark import build_spark
 from ghostbus_jobs.timetable_load import DIM, Dim
 
 log = logging.getLogger("ghostbus.calibration")
+#: The model v2 replaced; its probability is stored next to v2's, so both are scored on the
+#: same trips.
+V1 = "heuristic-v1"
 PREDICTIONS = "lake.gold.calibration_predictions"
 SCHEMA = (
     "service_date DATE, trip_instance_key STRING, lead_min INT, predicted_at TIMESTAMP, "
     "route_slug STRING, status STRING, probability DOUBLE, ran INT, outcome STRING, "
-    "base_rate DOUBLE, model STRING, computed_at TIMESTAMP"
+    "base_rate DOUBLE, model STRING, computed_at TIMESTAMP, probability_v1 DOUBLE"
 )
 
 
@@ -66,9 +69,10 @@ SCHEMA = (
 
 def histories(
     spark: SparkSession, day: date, gold: str = GOLD
-) -> tuple[dict[str, RouteHistory], float | None]:
+) -> tuple[dict[str, RouteHistory], float | None, Model]:
     """Route histories from the 28 days before ``day``, through the same path as the published
-    route files; plus the base rate (share of trips that ran) over the same window."""
+    route files; the base rate (share of trips that ran) over the same window; and the model
+    (heuristic-v2) fitted on the same window by the function the nightly export uses."""
     cells = gather_cells(spark, day - timedelta(days=1), gold)
     days = {c.service_date: "ok" for c in cells}
     out = {}
@@ -76,7 +80,7 @@ def histories(
         doc = route_doc(agency, route, cells, days, day - timedelta(days=1))
         out[slug(agency, route)] = history_from_route_doc(doc)
     n = sum(c.n for c in cells)
-    return out, (sum(c.ran for c in cells) / n if n else None)
+    return out, (sum(c.ran for c in cells) / n if n else None), fit(cells)
 
 
 # --- the live status at each lead time ----------------------------------------------------------
@@ -168,7 +172,7 @@ def _epoch(ts: datetime) -> int:
 def predict(
     spark: SparkSession, src: Sources, day: date, gold: str = GOLD, dim: Dim = DIM
 ) -> list[dict[str, Any]]:
-    hist, base_rate = histories(spark, day, gold)
+    hist, base_rate, model = histories(spark, day, gold)
     rows = statuses(spark, src, moments(test_trips(spark, day, gold)), dim).collect()
     computed = datetime.now(UTC).replace(tzinfo=None, microsecond=0)
     out = []
@@ -183,9 +187,9 @@ def predict(
         status, fresh = live_status(
             float(age) if age is not None else None, r["cancelled"], r["tracked"], r["assigned"]
         )
-        p, _ = probability(
-            hist.get(route_slug), Departure("", start, 0, trip), status, asked, fresh
-        )
+        dep = Departure("", start, 0, trip)
+        p, _ = model.probability(hist.get(route_slug), dep, status, asked, fresh)
+        p_v1, _ = probability(hist.get(route_slug), dep, status, asked, fresh)
         out.append(
             {
                 "service_date": day,
@@ -198,8 +202,9 @@ def predict(
                 "ran": int(r["outcome"] == "RAN"),
                 "outcome": r["outcome"],
                 "base_rate": base_rate,
-                "model": MODEL,
+                "model": model.name,
                 "computed_at": computed,
+                "probability_v1": p_v1,
             }
         )
     return out
@@ -211,6 +216,8 @@ def write(
     """Replace the day's predictions: delete, then insert. Rerunning a day gives the same rows."""
     spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {table.rsplit('.', 1)[0]}")
     spark.sql(f"CREATE TABLE IF NOT EXISTS {table} ({SCHEMA}) USING iceberg")
+    if "probability_v1" not in spark.table(table).columns:  # tables made before heuristic-v2
+        spark.sql(f"ALTER TABLE {table} ADD COLUMNS (probability_v1 DOUBLE)")
     spark.sql(f"DELETE FROM {table} WHERE service_date = DATE '{day.isoformat()}'")
     if rows:
         spark.createDataFrame(rows, SCHEMA).writeTo(table).append()
@@ -224,7 +231,16 @@ def scored(spark: SparkSession, end: date, table: str = PREDICTIONS) -> list[Pre
         spark.table(table)
         .where(F.col("service_date").between(F.lit(start), F.lit(end)))
         .where(F.col("base_rate").isNotNull())
-        .select("service_date", "lead_min", "status", "probability", "ran", "base_rate")
+        .select(
+            "service_date",
+            "lead_min",
+            "status",
+            "probability",
+            "ran",
+            "base_rate",
+            "probability_v1",
+            "model",
+        )
         .collect()
     )
     return [
@@ -235,6 +251,7 @@ def scored(spark: SparkSession, end: date, table: str = PREDICTIONS) -> list[Pre
             r["probability"],
             int(r["ran"]),
             float(r["base_rate"]),
+            r["probability_v1"] if r["model"] != V1 else None,  # v1-only rows: no comparison
         )
         for r in rows
     ]
@@ -258,7 +275,9 @@ def run(
             statuses_seen[r["status"]] += 1
         log.info("%s: %d predictions %s", day, len(rows), dict(statuses_seen))
     preds = scored(spark, days[-1], table)
-    doc = calibration_doc(preds, MODEL, datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    doc = calibration_doc(
+        preds, NAME, datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), previous_model=V1
+    )
     if target is not None:
         publish(target, {"calibration.json": doc})
     o = doc["overall"]

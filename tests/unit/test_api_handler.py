@@ -101,7 +101,8 @@ def test_a_warm_container_reads_almost_nothing(src: Sources) -> None:
     call("1358")
     first = src.s3_reads
     call("1358")
-    assert first == 6  # pointer, shard, two snapshots, two route files (39's is missing: cached)
+    # pointer, shard, two snapshots, two route files (39's is missing: cached), model.json (missing)
+    assert first == 7
     assert src.s3_reads == first  # all from memory within the TTLs
 
 

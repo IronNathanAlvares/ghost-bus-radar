@@ -59,6 +59,14 @@ function probability(d) {
     `${p}% chance`);
 }
 
+/** A cancelled bus is not always gone: say how often this operator's cancelled buses still ran. */
+function cancelledChance(d) {
+  if (!d.probability) return null;
+  const p = Math.round(d.probability * 100);
+  return h("span", { class: "small", title: "From this operator's record of cancelled buses that ran anyway" },
+    `but ${p}% of this operator's cancelled buses still ran`);
+}
+
 function renderBoard(doc) {
   const box = document.getElementById("stop");
   document.title = `${doc.stop.name} · Ghost Bus Radar`;
@@ -80,7 +88,8 @@ function renderBoard(doc) {
         h("div", { class: "meta" },
           h("span", { class: `live ${d.status}` }, STATUS[d.status] || d.status),
           delay ? h("span", {}, delay) : null,
-          d.status === "cancelled" || d.status === "skips_stop" ? null : probability(d))),
+          d.status === "skips_stop" ? null
+            : d.status === "cancelled" ? cancelledChance(d) : probability(d))),
       h("div", { class: "when" },
         h("span", { class: "big" }, d.status === "cancelled" ? "–" : minutesAway(when, now)),
         h("span", { class: "small muted" }, d.expected ? `${clock(d.expected)}, due ${clock(d.scheduled)}` : `due ${clock(d.scheduled)}`)));

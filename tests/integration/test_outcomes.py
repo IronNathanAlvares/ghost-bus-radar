@@ -442,10 +442,10 @@ def test_calibration_backtest_replays_the_live_status_at_each_lead(
         doc = run(spark, [date(2026, 11, 16)], site, lambda _day: src, gold, table, dim)
         rows = spark.table(table).collect()
         got = {
-            (r["route_slug"], r["lead_min"]): (r["status"], r["probability"], r["ran"])
+            (r["route_slug"], r["lead_min"]): (r["status"], r["probability_v1"], r["ran"])
             for r in rows
         }
-        assert got == {
+        assert got == {  # heuristic-v1, the hand-worked numbers
             ("dublin-bus-46a", 30): ("scheduled", 0.5, 0),
             ("dublin-bus-46a", 15): ("scheduled", 0.5, 0),
             ("dublin-bus-46a", 5): ("scheduled", 1.0, 0),
@@ -455,9 +455,17 @@ def test_calibration_backtest_replays_the_live_status_at_each_lead(
             ("dublin-bus-7", 5): ("assigned", None, 0),
             ("dublin-bus-7", 1): ("assigned", None, 0),
         }
+        v2 = {(r["route_slug"], r["lead_min"]): r["probability"] for r in rows}
+        assert {r["model"] for r in rows} == {"heuristic-v2"}
+        # heuristic-v2: route 7 (no history) now gets the network answer, not silence; the one
+        # Dublin Bus cancellation in the history (13 Nov) was real, so "cancelled" stays 0.
+        assert all(v2[("dublin-bus-7", lead)] is not None for lead in (30, 15, 5, 1))
+        assert v2[("dublin-bus-46a", 1)] == 0.0
+        assert all(0.0 <= p <= 1.0 for p in v2.values())
         assert {r["base_rate"] for r in rows} == {0.25}  # 1 of 4 history trips ran
         jsonschema.validate(doc, schemas.load(schemas.EXPORT["calibration.json"]))
-        assert (doc["overall"]["scored"], doc["overall"]["without_history"]) == (4, 4)
+        assert (doc["overall"]["scored"], doc["overall"]["without_history"]) == (8, 0)
+        assert doc["comparison"]["previous_model"] == "heuristic-v1"
         assert (tmp_path / "site" / "calibration.json").exists()
         # Rerunning the day replaces its rows instead of adding to them.
         run(spark, [date(2026, 11, 16)], None, lambda _day: src, gold, table, dim)

@@ -82,6 +82,18 @@ async function main() {
       doc.reliability.map((r) => [`${pct(r.from, 0)}–${pct(r.to, 0)}`, r.n.toLocaleString("en-IE"),
         pct(r.mean_predicted), pct(r.share_ran), `${pct(r.lo)}–${pct(r.hi)}`]))));
   }
+  const c = doc.comparison;
+  if (c) {
+    out.push(h("h3", {}, "Against the previous model"));
+    out.push(table(
+      ["Model", "Brier", "Calibration error", "Reliability", "Resolution"],
+      [[doc.model, c.current], [c.previous_model, c.previous]].map(([name, s]) => [
+        name, num(s.brier, 4), pct(s.calibration_error), num(s.decomposition.reliability, 4),
+        num(s.decomposition.resolution, 4)])));
+    out.push(h("p", { class: "small muted" },
+      `Both scored on the same ${c.predictions.toLocaleString("en-IE")} predictions. Reliability is the penalty for saying the wrong `
+      + "chance (lower is better); resolution is how well a model tells buses apart (higher is better)."));
+  }
   out.push(h("h3", {}, "By how far ahead the chance was given"));
   out.push(table(
     ["Minutes before", "Scored", "Brier", "Always comes", "Base rate", "Better than always comes", "Better than base rate"],

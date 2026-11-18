@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ghostbus.model.v1",
+  "description": "data/v1/model.json: the parameters of the 'will my bus come?' model (heuristic-v2, ADR-0015), fitted nightly on the published days.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "attribution",
+    "model",
+    "days",
+    "network",
+    "priors",
+    "cancelled"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ghostbus.model.v1"
+    },
+    "attribution": {
+      "$ref": "#/$defs/attribution"
+    },
+    "model": {
+      "type": "string"
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trips",
+        "ran",
+        "ghost",
+        "phantom",
+        "cancelled_early"
+      ],
+      "properties": {
+        "trips": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ran": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ghost": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "phantom": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cancelled_early": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "priors": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "route_trips",
+          "hour_trips"
+        ],
+        "properties": {
+          "route_trips": {
+            "type": "number",
+            "minimum": 0
+          },
+          "hour_trips": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "propertyNames": {
+        "enum": [
+          "scheduled",
+          "scheduled_near",
+          "assigned",
+          "tracked"
+        ]
+      }
+    },
+    "cancelled": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prior_trips",
+        "network",
+        "by_operator"
+      ],
+      "properties": {
+        "prior_trips": {
+          "type": "number",
+          "minimum": 0
+        },
+        "network": {
+          "type": "object",
+          "required": [
+            "notices",
+            "ran"
+          ],
+          "properties": {
+            "notices": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ran": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "by_operator": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "agency",
+              "notices",
+              "ran"
+            ],
+            "properties": {
+              "agency": {
+                "type": "string"
+              },
+              "notices": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ran": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "attribution": {
+      "type": "object",
+      "required": [
+        "source",
+        "source_url",
+        "licence",
+        "disclaimer"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "source_url": {
+          "type": "string"
+        },
+        "licence": {
+          "const": "CC BY 4.0"
+        },
+        "disclaimer": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

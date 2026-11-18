@@ -22,8 +22,9 @@ from typing import Any
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-from ghostbus_core.export import Cell, Stop, build, dumps
+from ghostbus_core.export import Cell, Stop, build, dumps, publishable
 from ghostbus_core.lake import LakeSettings
+from ghostbus_core.model import fit
 from ghostbus_core.outcomes import DEFAULT
 from ghostbus_core.provenance import Seal
 from ghostbus_core.timetable import LOCAL_TZ
@@ -41,6 +42,8 @@ WINDOW_DAYS = 28
 def gather_cells(spark: SparkSession, end: date, gold: str = GOLD) -> list[Cell]:
     start = end - timedelta(days=WINDOW_DAYS - 1)
     local = F.from_utc_timestamp("scheduled_start", "Europe/Dublin")
+    # A cancellation notice before the trip was due (heuristic-v2 learns how often these still ran)
+    notice = F.col("cancelled_at").isNotNull() & (F.col("cancelled_at") <= F.col("scheduled_start"))
     rows = (
         spark.table(gold)
         .where(F.col("service_date").between(F.lit(start), F.lit(end)))
@@ -64,6 +67,8 @@ def gather_cells(spark: SparkSession, end: date, gold: str = GOLD) -> list[Cell]
                     "cancelled_late": "CANCELLED_LATE",
                 }.items()
             ],
+            F.sum(notice.cast("int")).alias("notice"),
+            F.sum((notice & (F.col("outcome") == "RAN")).cast("int")).alias("notice_ran"),
         )
         .collect()
     )
@@ -80,6 +85,8 @@ def gather_cells(spark: SparkSession, end: date, gold: str = GOLD) -> list[Cell]
             vanished=int(r["vanished"]),
             cancelled_early=int(r["cancelled_early"]),
             cancelled_late=int(r["cancelled_late"]),
+            notice=int(r["notice"]),
+            notice_ran=int(r["notice_ran"]),
         )
         for r in rows
     ]
@@ -169,14 +176,20 @@ def run(
     quality_table: str = QUALITY,
     dim: Dim = DIM,
 ) -> dict[str, dict[str, Any]]:
+    cells = gather_cells(spark, end, gold)
+    quality = gather_quality(spark, end, quality_table)
+    # The probability model (heuristic-v2), fitted on the published days only, like every rate.
+    published = publishable(quality)
+    model_doc = fit([c for c in cells if c.service_date in published]).to_doc()
     docs = build(
-        cells=gather_cells(spark, end, gold),
-        quality=gather_quality(spark, end, quality_table),
+        cells=cells,
+        quality=quality,
         stops=gather_stops(spark, dim),
         end=end,
         generated_at=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         params_version=DEFAULT.version,
         chain_head=chain_head(archive) if archive else None,
+        extra={"model.json": model_doc},
     )
     written, unchanged = publish(target, docs)
     log.info("export to %s: %d files written, %d unchanged", target.uri, written, unchanged)

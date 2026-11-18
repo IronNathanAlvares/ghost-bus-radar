@@ -215,6 +215,20 @@ flowchart TB
   still ran, and that routes with very little history get extreme guesses. Both are fixable
   (shrink routes toward the network rate; learn the chance that a cancelled bus still runs), and
   both would have stayed invisible without replaying the archive (measurement 08).
+- *So what did you change? (heuristic-v2, ADR-0015)* Hierarchical empirical Bayes: an hour's
+  record is shrunk toward its route's and the route's toward the network's, with the strength of
+  each pull estimated from how much the routes really differ (a beta-binomial fitted by the method
+  of moments). And "cancelled" became each operator's measured chance of running anyway: Bus
+  Éireann's cancelled buses ran 59% of the time, Dublin Bus's never.
+- *How do you know v2 is better and not just tuned to the test?* An offline harness first
+  reproduced every stored v1 probability exactly; then v2 was scored walk-forward with nothing
+  fitted on the test days. Its prior strengths come from each day's history, and its two fixed
+  settings were chosen before looking. It won on every day, lead time and live status, and Murphy's
+  decomposition showed why: the calibration penalty fell to a seventh while resolution held.
+- *Why not just bolt on isotonic regression or Platt scaling?* They correct a model's numbers
+  without fixing why they are wrong, and isotonic regression overfits small calibration sets.
+  Fixing the structure first made the calibration error almost vanish; a Platt layer stays in
+  reserve if a steady tilt shows up in the nightly backtest.
 
 ## 6.2 Who may do what (least privilege)
 

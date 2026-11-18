@@ -496,8 +496,11 @@ def departures_doc(
     now: int,
     minutes: int = 60,
     limit: int = 10,
+    model: Any = None,
 ) -> dict[str, Any]:
-    """The response for ``GET /v1/stops/{code}/departures``."""
+    """The response for ``GET /v1/stops/{code}/departures``. ``model`` is a fitted
+    ``ghostbus_core.model.Model`` (heuristic-v2); without one, heuristic-v1 answers."""
+    chance = model.probability if model is not None else probability
     meta = live_status(live, now)
     usable = live if meta["status"] in ("fresh", "stale") else None
     fresh = meta["status"] == "fresh"
@@ -537,7 +540,7 @@ def departures_doc(
             continue
         if expected is None and d.at < now - GONE_S:
             continue  # no prediction and the scheduled time has passed: cannot say it is coming
-        p, basis = probability(history.get(d.trip.slug), d, status, now, fresh)
+        p, basis = chance(history.get(d.trip.slug), d, status, now, fresh)
         rows.append(
             (
                 when,
@@ -567,6 +570,6 @@ def departures_doc(
         "generated_at": _iso(now),
         "window_minutes": minutes,
         "live": meta,
-        "model": MODEL,
+        "model": model.name if model is not None else MODEL,
         "departures": [r[3] for r in rows[:limit]],
     }

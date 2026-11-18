@@ -61,6 +61,10 @@ class Cell:
     vanished: int = 0
     cancelled_early: int = 0
     cancelled_late: int = 0
+    #: Trips with a cancellation notice before their start, and those of them that ran anyway
+    #: (heuristic-v2 learns the chance a "cancelled" bus still runs from these; ADR-0015).
+    notice: int = 0
+    notice_ran: int = 0
 
 
 @dataclass(frozen=True)
@@ -276,8 +280,10 @@ def build(
     generated_at: str,
     params_version: str,
     chain_head: str | None,
+    extra: Mapping[str, dict[str, Any]] | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Every document, keyed by its path under ``data/v1/``."""
+    """Every document, keyed by its path under ``data/v1/``. ``extra`` documents (the model
+    parameters) are added before ``meta.json``, so meta lists them too."""
     docs: dict[str, dict[str, Any]] = {}
     for d in sorted(quality):
         docs[f"days/{d.isoformat()}.json"] = day_doc(d, cells, quality)
@@ -287,6 +293,7 @@ def build(
     for agency, route in routes:
         docs[f"routes/{slug(agency, route)}.json"] = route_doc(agency, route, cells, quality, end)
     docs["stops.json"] = stops_doc(stops)
+    docs.update(extra or {})
     # generated_at is volatile, so meta.json is the one file that changes every night.
     docs["meta.json"] = meta_doc(quality, end, generated_at, params_version, chain_head, docs)
     return docs

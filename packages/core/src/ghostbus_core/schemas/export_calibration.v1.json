@@ -96,6 +96,37 @@
           }
         ]
       }
+    },
+    "comparison": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "previous_model",
+            "predictions",
+            "current",
+            "previous"
+          ],
+          "properties": {
+            "previous_model": {
+              "type": "string"
+            },
+            "predictions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "current": {
+              "$ref": "#/$defs/summary"
+            },
+            "previous": {
+              "$ref": "#/$defs/summary"
+            }
+          }
+        }
+      ]
     }
   },
   "$defs": {
@@ -241,6 +272,52 @@
               "maximum": 1
             }
           ]
+        },
+        "decomposition": {
+          "type": "object",
+          "required": [
+            "reliability",
+            "resolution",
+            "uncertainty"
+          ],
+          "properties": {
+            "reliability": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              ]
+            },
+            "resolution": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              ]
+            },
+            "uncertainty": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              ]
+            }
+          }
         }
       }
     },
