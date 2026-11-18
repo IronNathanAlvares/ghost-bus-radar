@@ -1,0 +1,6 @@
+{
+  "content_security_policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+  "permissions_policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+  "referrer_policy": "strict-origin-when-cross-origin",
+  "hsts_max_age_s": 31536000
+}

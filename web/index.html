@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ghost Bus Radar: does the bus on the board really come?</title>
+  <meta name="description" content="Independent reliability numbers for Irish buses: how often a scheduled bus never shows up on the live feed, per route, with honest uncertainty.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+  <link rel="modulepreload" href="assets/common.js">
+  <link rel="preload" href="data/v1/meta.json" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="data/v1/league/7d.json" as="fetch" crossorigin="anonymous">
+  <script type="module" src="assets/home.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="28" height="28">Ghost Bus Radar</a>
+      <nav class="site" aria-label="Main">
+        <ul>
+          <li><a href="./" aria-current="page">League table</a></li>
+          <li><a href="stop.html">My stop</a></li>
+          <li><a href="methodology.html">How it works</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <h1>Does the bus on the board really come?</h1>
+    <p class="lede">Every scheduled bus in Ireland, checked against the live feed. A bus is
+      <a href="methodology.html#untracked">untracked</a> when it never appeared on the live map,
+      or was given a vehicle that never moved. Only days whose data passed our
+      <a href="methodology.html#quality-gates">quality checks</a> are counted.</p>
+
+    <section class="hero" aria-labelledby="headline-title">
+      <div class="card" id="headline">
+        <h2 id="headline-title" class="small muted">Last 7 published days</h2>
+        <p class="muted">Loading…</p>
+      </div>
+      <div class="card">
+        <h2 class="small muted">At your stop, right now</h2>
+        <p>Live departures with the chance each bus really comes.</p>
+        <form class="search" action="stop.html" method="get" role="search">
+          <label class="skip" for="q">Stop number or name</label>
+          <input id="q" name="q" type="search" placeholder="Stop number or name, e.g. 1358" autocomplete="off" required>
+          <button type="submit">Find</button>
+        </form>
+      </div>
+    </section>
+
+    <section aria-labelledby="league-title">
+      <h2 id="league-title">Routes, least reliable first</h2>
+      <p class="muted small">Ranked by the <a href="methodology.html#ranking">lower end of the 95% interval</a>:
+        a route is near the top only when the data is confident it is bad. Routes need at least 30 trips.</p>
+      <div class="seg" role="group" aria-label="Window">
+        <button type="button" data-window="7" aria-pressed="true">7 days</button>
+        <button type="button" data-window="28" aria-pressed="false">28 days</button>
+      </div>
+      <div id="league"><p class="muted">Loading…</p></div>
+    </section>
+
+    <section aria-labelledby="days-title">
+      <h2 id="days-title">Data status by day</h2>
+      <p class="muted small">A day that did not pass the <a href="methodology.html#quality-gates">quality checks</a>
+        is listed here but counted in no number on this site.</p>
+      <div id="days"><p class="muted">Loading…</p></div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <p>Data: National Transport Authority (NTA), GTFS and GTFS-Realtime, licensed
+        <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. NTA data is provided as is;
+        the NTA is not responsible for errors in it or in this analysis. Figures are derived by Ghost Bus
+        Radar, an independent project. <a href="methodology.html#attribution">Sources and licence</a>.</p>
+      <p id="updated" class="muted"></p>
+    </div>
+  </footer>
+</body>
+</html>

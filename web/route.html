@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Route reliability · Ghost Bus Radar</title>
+  <meta name="description" content="How often buses on this route never showed up on the live feed: by day, and by hour and day type, with 95% intervals.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+  <link rel="modulepreload" href="assets/common.js">
+  <script type="module" src="assets/route.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="28" height="28">Ghost Bus Radar</a>
+      <nav class="site" aria-label="Main">
+        <ul>
+          <li><a href="./">League table</a></li>
+          <li><a href="stop.html">My stop</a></li>
+          <li><a href="methodology.html">How it works</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <p class="small"><a href="./">← All routes</a></p>
+    <h1 id="title">Route</h1>
+    <p id="sub" class="lede">Loading…</p>
+    <div id="tiles" class="tiles"></div>
+
+    <section aria-labelledby="heat-title">
+      <h2 id="heat-title">When it goes wrong: untracked share by hour</h2>
+      <p class="muted small">By the hour each trip was due to start, local time. The further along the key, the worse.
+        Hatched cells have fewer than 10 trips: too few to read anything into. <a href="methodology.html#heatmap">How to read this</a>.</p>
+      <div id="heat" class="table-scroll"></div>
+    </section>
+
+    <section aria-labelledby="daily-title">
+      <h2 id="daily-title">Day by day</h2>
+      <p class="muted small">Untracked share for each published day; the line on each bar is its
+        <a href="methodology.html#interval">95% interval</a>.</p>
+      <div id="daily"></div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <p>Data: National Transport Authority (NTA), GTFS and GTFS-Realtime, licensed
+        <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. NTA data is provided as is;
+        the NTA is not responsible for errors in it or in this analysis. Figures are derived by Ghost Bus
+        Radar, an independent project. <a href="methodology.html#attribution">Sources and licence</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>

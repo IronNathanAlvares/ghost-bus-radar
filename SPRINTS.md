@@ -152,7 +152,7 @@ latency p50 46 s, p95 47 s at a 30 s trigger; every micro-batch under 1 s. See
 | API: departures by stop plate code, health (`ghostbus-api`, HTTP API; route reliability is in the public export) | done 18 Nov (ADR-0012) |
 | "Will it come?" probability: history by route x day type x trip-start hour, shrunk toward the route (20-trip prior), conditioned on live status (`heuristic-v1`) | done 18 Nov; probabilities appear once a day passes the quality gates |
 | Calibration on held-out days: Brier score + reliability diagram | todo |
-| Website: league table, route page, stop lookup, heatmaps, methodology, NTA attribution | todo |
+| Website: league table, route page, stop lookup, heatmaps, methodology, NTA attribution | done 18 Nov (ADR-0013) |
 | Daily JSON export so the site works when the cluster is parked | done 18 Nov (ADR-0011) |
 
 **Measure:** API p95 latency: gateway p95 323 ms, target 500 ms (`docs/measurements/06-api.md`); Brier score versus a "always says it comes" baseline (roadmap 2.4).

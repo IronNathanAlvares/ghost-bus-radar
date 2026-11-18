@@ -1,0 +1,62 @@
+# Lighthouse scores for the live website (roadmap 2.2: every page >= 90), measured on a clean
+# GitHub runner. Run by hand with the site's URL, which is not stored in the repository:
+#
+#     gh workflow run lighthouse.yml -f url=https://<distribution>.cloudfront.net/
+#
+# A laptop is a poor place to measure: antivirus HTTPS inspection injects scripts and adds latency.
+name: lighthouse
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Site URL, ending in /"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check the URL is an https CloudFront address
+        env:
+          URL: ${{ inputs.url }}
+        run: |
+          [[ "$URL" =~ ^https://[a-z0-9]+\.cloudfront\.net/$ ]] || { echo "not a CloudFront site URL"; exit 1; }
+      - name: Run Lighthouse on every page (mobile, simulated slow 4G)
+        env:
+          URL: ${{ inputs.url }}
+        run: |
+          mkdir -p lh
+          for page in "" "route.html?r=dublin-bus-46a" "stop.html?code=1358" "methodology.html"; do
+            name=$(echo "${page:-index}" | sed 's/[^a-z0-9]/-/g')
+            curl -s -o /dev/null "$URL$page"   # warm the edge cache, as a returning visitor would see
+            npx --yes lighthouse@12.8.2 "$URL$page" --quiet --chrome-flags="--headless=new --no-sandbox" \
+              --only-categories=performance,accessibility,best-practices,seo \
+              --output=json --output-path="lh/$name.json"
+          done
+      - name: Scores (fail below 90)
+        run: |
+          python3 - <<'EOF'
+          import json, pathlib, sys
+          worst = 100
+          for p in sorted(pathlib.Path("lh").glob("*.json")):
+              r = json.loads(p.read_text())
+              scores = {k: round(v["score"] * 100) for k, v in r["categories"].items()}
+              a = r["audits"]
+              print(f"{p.stem:32} {scores}  FCP {a['first-contentful-paint']['displayValue']}"
+                    f"  LCP {a['largest-contentful-paint']['displayValue']}"
+                    f"  CLS {a['cumulative-layout-shift']['displayValue']}")
+              worst = min(worst, *scores.values())
+          print("lowest score:", worst)
+          sys.exit(0 if worst >= 90 else 1)
+          EOF
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: lighthouse
+          path: lh/
+          retention-days: 14

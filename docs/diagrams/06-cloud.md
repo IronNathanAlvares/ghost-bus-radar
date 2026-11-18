@@ -153,6 +153,33 @@ flowchart TD
   Roadmap 2.4 scores it on held-out days (Brier score, reliability diagram) before it is trusted.
   Until a route has published history it answers `null` with the reason, never a guess.
 
+## 6.1d The website
+
+**Say it in one breath:** CloudFront serves static pages from a private S3 bucket, the nightly
+JSON next to them, and passes `/v1/*` to the API, so the browser only ever talks to one origin;
+every response carries strict security headers.
+
+```mermaid
+flowchart TB
+    B["visitor's browser"] -->|"HTTPS only"| CF["CloudFront<br/>security headers on every response"]
+    CF -->|"/ and /assets/*<br/>cache 5 min"| S3W[("S3 site bucket: pages<br/>private, read through OAC")]
+    CF -->|"/data/*<br/>cache 5 min"| S3D[("S3 site bucket: data/v1/<br/>written nightly by Glue")]
+    CF -->|"/v1/*<br/>cache 30 s per full URL"| API["HTTP API + Lambda<br/>(6.1c)"]
+    TF["terraform apply"] -->|"each file with its MD5"| S3W
+```
+
+**Interviewer asks**
+- *Why no React or build step?* Four pages and a few hundred lines of JavaScript. A framework would
+  add a dependency tree to audit and patch, and a build whose output differs from what was
+  reviewed. Plain modules are what ships.
+- *Why route the API through CloudFront?* One origin for the browser, so the Content Security
+  Policy can say `connect-src 'self'` and no CORS is involved; and CloudFront answers repeat
+  questions about a busy stop for 30 seconds, which takes load (and cost) off the Lambda.
+- *How do you deploy a change?* `terraform apply` uploads each changed file (it compares MD5s).
+  Files carry `max-age=300`, so visitors see the change within 5 minutes without an invalidation.
+- *How does the site stay honest before there is data?* It reads the same quality verdicts as the
+  export: no published day means an empty league with the reason, never a number from a bad day.
+
 ## 6.2 Who may do what (least privilege)
 
 **Say it in one breath:** every component has its own IAM role with only the actions it needs on

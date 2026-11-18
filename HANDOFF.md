@@ -63,6 +63,9 @@ Sprint 4 added trip outcomes (`docs/03-ghost-definition.md`, ADR-0008):
     (`ghostbus-api-index`, nightly after `timetable-load`, writes `s3://ghostbus-work-<account-id>/api/v1/`),
     the newest archived snapshots and the published route files. It never calls the NTA.
     Probabilities stay `null` until a route has a day that passed the quality gates.
+  - **Website** (ADR-0013): `terraform output site_url`. Pages are `web/` (deployed by
+    `terraform apply`); preview locally with `uv run python infra/site/preview.py` (demo data) or
+    `--live` (the published data). Security headers: `infra/site/security_headers.json`.
   - **What's next:** `docs/06-roadmap.md`. Phase 0 is in progress: the code is on GitHub
     (`IronNathanAlvares/ghost-bus-radar`, public), and the archive guardrails and CloudTrail are live.
 - The field check needs a person at a bus stop.

@@ -283,6 +283,28 @@ flowchart TB
   or a bounded number; even a bug past both runs under a role that can only read public-grade data.
   Questions 31 to 36 below go into each layer.
 
+## 8.11 The website in the browser (boundary B5, part 2)
+
+**Say it in one breath:** the site can only run its own code: the Content Security Policy refuses
+anything else, the code never turns data into markup, and a test fails the build if either
+promise is broken.
+
+```mermaid
+flowchart TB
+    D["text from the data<br/>(stop names, headsigns)"] --> H["h(): DOM elements and text nodes,<br/>never innerHTML"]
+    H --> P["page"]
+    X["injected script or style<br/>(XSS, a compromised CDN)"] --> CSP{"CSP: script-src 'self',<br/>style-src 'self', default-src 'none'"}
+    CSP -->|"blocked"| P
+    F["another site framing us<br/>(clickjacking)"] --> FA{"frame-ancestors 'none',<br/>X-Frame-Options DENY"}
+    FA -->|"blocked"| P
+    T["tests/unit/test_web.py"] -.->|"fails the build on inline code,<br/>innerHTML, broken definition links"| H
+```
+
+**Interviewer asks**
+- *Isn't CSP enough on its own?* It's the second line. The first is never creating markup from
+  data, so there is nothing to inject into; the CSP limits the damage if the first ever fails, and
+  the test keeps both true as the code changes.
+
 ## Question bank
 
 Short, honest answers you can give, each tied to something you can show.
@@ -427,4 +449,33 @@ Short, honest answers you can give, each tied to something you can show.
     `no_live_data`); an expired index is a 503 with the reason; a route with no published history has
     probability `null` with the reason. Failing loudly is a security property too: a confident
     wrong answer is how people get misled.
+
+### The website (roadmap 2.2)
+
+37. **What is a Content Security Policy, and what does yours say?** A response header telling the
+    browser which sources a page may load code and data from. Ours: nothing by default
+    (`default-src 'none'`), scripts, styles and fetches only from our own origin, no plugins, no
+    framing (`frame-ancestors 'none'`), no `<base>` tricks (`base-uri 'none'`). An injected
+    `<script>` or inline `onclick` simply does not run. It works because the site has no inline
+    code at all, and a test keeps it that way.
+38. **How do you prevent XSS?** By never turning data into HTML: every element is built with
+    `createElement` and text nodes, so a stop called `<img onerror=…>` is displayed as those
+    characters. The CSP is the safety net, not the plan. A test fails if any script uses
+    `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `eval`.
+39. **Why isn't the S3 bucket public, if the website is?** Public buckets are how most S3 data leaks
+    happen, and a public bucket would bypass CloudFront's headers and caching. Block Public Access
+    stays on; CloudFront reads through origin access control, signing each request, and the bucket
+    policy allows only this distribution's ARN to read.
+40. **What is cache poisoning, and did you have to think about it?** Getting a cache to store a
+    harmful response under a key that normal users request. I nearly built one: the first API cache
+    key used only the known query strings, so `?minutes=60&junk=1` (a 400 error) could have been
+    cached as `?minutes=60` and served to everyone for a few seconds. The cache key now includes
+    every query string.
+41. **What does HSTS do here?** It tells browsers to use HTTPS for this host for a year, so a
+    network attacker can't downgrade a later visit to plain HTTP. `preload` is left off: it only
+    means something for a domain we own, which comes with a custom domain.
+42. **Why no analytics or access logs on the website?** Both would collect visitors' IP addresses
+    and browsing, which this project doesn't need. Data you never collect can't leak, and it keeps
+    the site free of cookie banners. The cost is not knowing traffic in detail; CloudFront's
+    aggregate metrics are enough.
 

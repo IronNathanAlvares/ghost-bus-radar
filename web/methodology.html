@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How it works · Ghost Bus Radar</title>
+  <meta name="description" content="Definitions behind every number on Ghost Bus Radar: trip outcomes, which trips count, intervals, ranking, quality checks, the live status and the probability model.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="28" height="28">Ghost Bus Radar</a>
+      <nav class="site" aria-label="Main">
+        <ul>
+          <li><a href="./">League table</a></li>
+          <li><a href="stop.html">My stop</a></li>
+          <li><a href="methodology.html" aria-current="page">How it works</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap prose">
+    <h1>How it works</h1>
+    <p class="lede">Every number on this site comes from two public NTA feeds: the timetable (GTFS)
+      and the live feed (GTFS-Realtime), which we record every minute. Each scheduled trip gets
+      exactly one outcome. Below is what each word means, which trips count, and what the numbers
+      cannot tell you.</p>
+
+    <h2 id="outcomes">Trip outcomes</h2>
+    <p>Rules are checked in this order; the first that fits decides.</p>
+    <dl>
+      <dt id="out-of-scope">Out of scope</dt>
+      <dd>Rail and Luas. The live feed has no vehicle positions for them, so a missing vehicle proves
+        nothing. Never counted anywhere.</dd>
+      <dt id="cancelled-early">Cancelled with notice</dt>
+      <dd>Marked cancelled in the live feed at least 15 minutes before it was due to leave.</dd>
+      <dt id="cancelled-late">Cancelled late</dt>
+      <dd>Marked cancelled with less notice than that.</dd>
+      <dt id="ran">Ran</dt>
+      <dd>Tracked through at least 60% of its route's stops.</dd>
+      <dt id="vanished">Vanished</dt>
+      <dd>Tracked on the route (it reached at least one stop), then lost before reaching 60%.</dd>
+      <dt id="phantom">Phantom</dt>
+      <dd>Not cancelled and never reached a stop, but a vehicle was assigned: the board showed a live
+        countdown to a bus that never came.</dd>
+      <dt id="ghost">Ghost</dt>
+      <dd>Never tracked, never cancelled, no vehicle ever assigned.</dd>
+      <dt id="no-data">No data</dt>
+      <dd>A gap in <em>our own</em> recording could have hidden what happened. Excluded from every
+        number: our downtime is never counted as a missing bus.</dd>
+    </dl>
+    <p id="untracked"><strong>Untracked</strong> = ghost + phantom: the bus never showed up on the live
+      map at all. This is the headline number, because it is what a passenger experiences as "the bus
+      on the board never came" with no warning.</p>
+
+    <h2 id="in-rates">Which trips count</h2>
+    <p>Only <strong>fully collected</strong> bus trips: ones whose whole window, from 30 minutes before
+      the scheduled start to 30 minutes after the scheduled end, falls inside our recording. Across a
+      recording gap, buses that ran still show as ran, but buses that didn't would show as no data, so
+      including those trips would make service look better than it was. Every figure states how many
+      trips it is based on.</p>
+
+    <h2 id="interval">95% intervals</h2>
+    <p>A share from a few dozen trips is uncertain, so every share comes with a 95% Wilson score
+      interval: the range the true share very likely lies in. A route at "20%" from 10 trips has an
+      interval of about 6% to 51%, which says much less than 20% from 1,000 trips.</p>
+
+    <h2 id="ranking">Ranking routes</h2>
+    <p>Routes are ranked by the <strong>lower end</strong> of the 95% interval of their untracked
+      share, worst first, and only with at least 30 trips in the window. A route is near the top only
+      when the data is confident it is bad, not when it had a few unlucky trips.</p>
+
+    <h2 id="quality-gates">Quality checks and published days</h2>
+    <p id="published-days">Every night, automated checks look at the day just finished: how much of it we
+      recorded, whether timetable and live trips matched up, whether the stored archive is intact, and
+      more. A day that fails is listed in the data status table, but <strong>counted in no number on
+      this site</strong>. A day passes with warnings when something looked unusual but not wrong.</p>
+
+    <h2 id="heatmap">The hour-by-day heatmap</h2>
+    <p>Each square is one hour of one day type (weekdays, Saturdays, Sundays), by when trips were due
+      to start, in Irish time. The further a square's colour is along the key, the larger the
+      untracked share. Squares with fewer than 10
+      trips are hatched: too few to read anything into. Bank holidays count under their weekday.</p>
+
+    <h2 id="live-status">Live status at your stop</h2>
+    <dl>
+      <dt>Tracked live</dt><dd>The bus is reporting its position on this trip.</dd>
+      <dt>Bus assigned, not moving yet</dt><dd>A vehicle is named for the trip, but not reporting a
+        position. Most of these turn into tracked buses; some become phantoms.</dd>
+      <dt>Timetable only so far</dt><dd>Nothing live about this trip yet. Normal for buses more than a
+        few minutes away.</dd>
+      <dt>Cancelled / Not stopping here</dt><dd>As published in the live feed.</dd>
+      <dt>No live data</dt><dd>Our live data is more than 15 minutes old, so we show the timetable
+        only rather than guess.</dd>
+    </dl>
+    <p id="freshness">Live data is the newest snapshot we recorded, at most a few minutes old. Expected
+      times come from the delays in the live feed for that stop, or carried forward from the last earlier
+      stop with a prediction.</p>
+
+    <h2 id="probability">The chance a bus comes</h2>
+    <p>The chance that the trip runs (is tracked through most of its route), estimated from the same
+      published history as the rest of this site, for that route at that day type and hour. What the
+      live feed already shows is taken into account: a bus tracked live cannot be a ghost, so its chance
+      is higher; a bus given a vehicle cannot be a ghost either; close to departure, a cancellation with
+      notice would already have been announced. Hours with few trips lean on the route's overall record.</p>
+    <p>This is model <code>heuristic-v1</code>: built on stated assumptions, and not yet measured
+      against what actually happened. Until it has been (with a calibration check on days it was not
+      built from), read it as a guide, not a promise. When a route has no published history yet, we say
+      so instead of showing a number.</p>
+
+    <h2 id="limits">What the numbers can't tell you</h2>
+    <ul>
+      <li>"Untracked" means the live feed never saw the bus. A bus with a broken tracker that ran on time
+        is counted as untracked. Spot checks at real stops are how we measure this.</li>
+      <li>Rail and Luas are not covered.</li>
+      <li>Extra buses added on the day, outside the timetable, are not shown at stops yet.</li>
+      <li>We are independent of the NTA and the operators; nothing here is official.</li>
+    </ul>
+
+    <h2 id="attribution">Sources and licence</h2>
+    <p>Source: National Transport Authority, <a href="https://developer.nationaltransport.ie/">GTFS and
+      GTFS-Realtime</a>, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+      NTA data is provided as is; the NTA is not responsible for errors in it or in this analysis. The
+      numbers on this site are derived by Ghost Bus Radar. The raw recordings are kept privately; only
+      derived figures are published. Every published file is also available as JSON under
+      <a href="data/v1/meta.json"><code>data/v1/</code></a>.</p>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <p>Ghost Bus Radar is an independent project. Data: NTA, CC BY 4.0, provided as is.</p>
+    </div>
+  </footer>
+</body>
+</html>

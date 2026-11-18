@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My stop · Ghost Bus Radar</title>
+  <meta name="description" content="Live departures at your bus stop, with each bus's live status and the chance it really comes.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+  <link rel="modulepreload" href="assets/common.js">
+  <script type="module" src="assets/stop.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="28" height="28">Ghost Bus Radar</a>
+      <nav class="site" aria-label="Main">
+        <ul>
+          <li><a href="./">League table</a></li>
+          <li><a href="stop.html" aria-current="page">My stop</a></li>
+          <li><a href="methodology.html">How it works</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <h1 id="title">Will my bus come?</h1>
+    <p class="lede">Find your stop by the number on the pole or by name.</p>
+    <form class="search" id="search" role="search">
+      <label class="skip" for="q">Stop number or name</label>
+      <input id="q" name="q" type="search" placeholder="Stop number or name, e.g. 1358" autocomplete="off" maxlength="60">
+      <button type="submit">Find</button>
+    </form>
+    <div id="results" aria-live="polite"></div>
+    <section id="stop" aria-live="polite"></section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <p>Live data: National Transport Authority (NTA) GTFS-Realtime, at most a few minutes old, licensed
+        <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> and provided as is. The chance
+        a bus comes is an estimate from this route's history, not a promise.
+        <a href="methodology.html#probability">How it is worked out</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>
