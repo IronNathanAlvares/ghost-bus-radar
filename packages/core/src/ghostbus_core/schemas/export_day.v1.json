@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ghostbus.day.v1",
+  "description": "One service day. Days that failed the quality gates carry published=false and no rates.",
+  "type": "object",
+  "required": [
+    "schema",
+    "attribution",
+    "date",
+    "day_type",
+    "quality",
+    "published"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ghostbus.day.v1"
+    },
+    "attribution": {
+      "$ref": "#/$defs/attribution"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "day_type": {
+      "enum": [
+        "weekday",
+        "saturday",
+        "sunday"
+      ]
+    },
+    "quality": {
+      "enum": [
+        "ok",
+        "warn",
+        "fail",
+        "missing"
+      ]
+    },
+    "published": {
+      "type": "boolean"
+    },
+    "note": {
+      "type": "string"
+    },
+    "trips_in_rates": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ran": {
+      "$ref": "#/$defs/rate"
+    },
+    "untracked": {
+      "$ref": "#/$defs/rate"
+    },
+    "vanished": {
+      "$ref": "#/$defs/rate"
+    },
+    "cancelled_early": {
+      "$ref": "#/$defs/rate"
+    },
+    "cancelled_late": {
+      "$ref": "#/$defs/rate"
+    },
+    "operators": {
+      "type": "array"
+    }
+  },
+  "$defs": {
+    "rate": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "k",
+            "n",
+            "rate",
+            "lo",
+            "hi"
+          ],
+          "properties": {
+            "k": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "n": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "rate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "lo": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "hi": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      ]
+    },
+    "attribution": {
+      "type": "object",
+      "required": [
+        "source",
+        "source_url",
+        "licence",
+        "disclaimer"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "source_url": {
+          "type": "string"
+        },
+        "licence": {
+          "const": "CC BY 4.0"
+        },
+        "disclaimer": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -24,8 +24,10 @@ flowchart TB
     subgraph BATCH["nightly batch"]
         TR["Glue trigger 04:15 UTC"] --> J1["Glue job timetable-load"]
         J1 -->|"on SUCCEEDED"| J2["Glue job reconcile"]
-        J2 -->|"on SUCCEEDED"| J3["Glue job quality<br/>checks + daily email"]
+        J2 -->|"on SUCCEEDED"| J3["Glue job quality<br/>checks into gold.data_quality<br/>+ daily email"]
+        J3 -->|"on SUCCEEDED"| J4["Glue job export<br/>public JSON"]
     end
+    J4 --> SITE[("S3 ghostbus-site<br/>data/v1")]
     ARC --> J1
     ARC --> J2
     WORK[("S3 ghostbus-work<br/>script, wheels, temp,<br/>Athena results")] -.-> J1
@@ -42,7 +44,6 @@ flowchart TB
     end
     L1 -.->|"metric Collected"| CWM
     J2 -.-> EVB
-    J3 --> ST
     J3 -->|"daily summary<br/>OK / WARN / FAIL"| SNS
 ```
 
@@ -54,6 +55,39 @@ flowchart TB
   denies EMR; Glue 5.1 matches the local Spark 3.5.6 / Iceberg 1.10 exactly (ADR-0010).
 - *How does Athena see Iceberg tables in S3 Tables?* The table bucket is federated into the Glue
   Data Catalog as `s3tablescatalog`; Athena queries `"s3tablescatalog/ghostbus-lake".gold.trip_outcomes`.
+
+## 6.1b The public data export
+
+**Say it in one breath:** every night, after the quality checks, a job writes small JSON files
+for the website, counting only days that passed the checks, ranking routes conservatively, and
+re-uploading only files whose bytes changed.
+
+```mermaid
+flowchart TD
+    G[("gold.trip_outcomes<br/>last 28 days")] --> A["aggregate: day x route x local hour<br/>(fully collected bus trips only)"]
+    Q[("gold.data_quality")] --> P{"day passed<br/>the gates?"}
+    A --> B["pure builders<br/>ghostbus_core.export"]
+    P -->|"yes"| B
+    P -->|"no: listed, never counted"| B
+    D[("dim: stops, routes")] --> B
+    C[("archive seals")] -->|"chain head"| B
+    B --> F["meta.json, days/, league/7d and 28d,<br/>routes/{slug}, stops.json<br/>(sorted keys, fixed rounding)"]
+    F --> U{"MD5 equals the<br/>stored ETag?"}
+    U -->|"yes"| K["skip: cache stays valid"]
+    U -->|"no"| W[("S3 ghostbus-site/data/v1/")]
+```
+
+**Interviewer asks**
+- *Why static files instead of an API for this?* The site keeps working with every compute part
+  switched off, it costs almost nothing to serve, and caches work perfectly because unchanged
+  files are byte-identical. Live data ("will my bus come?") is a separate API.
+- *How do you stop a bad day reaching the public?* The export reads each day's quality verdict;
+  a failed day is listed with a note but counted in no rate, and a property test checks that no
+  rate ever includes one.
+- *How do you rank routes fairly?* By the lower end of the 95% interval of the untracked rate,
+  with at least 30 trips. A small route with 2 bad trips out of 10 can't top the table.
+- *How would you change the format without breaking the website?* Never in place: every file
+  says `ghostbus.<kind>.v1` and validates against a JSON Schema; a breaking change is `data/v2/`.
 
 ## 6.2 Who may do what (least privilege)
 

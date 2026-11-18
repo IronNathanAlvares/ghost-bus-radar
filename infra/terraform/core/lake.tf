@@ -179,6 +179,11 @@ data "aws_iam_policy_document" "glue" {
     resources = [aws_s3_bucket.work.arn, "${aws_s3_bucket.work.arn}/*"]
   }
   statement {
+    sid       = "PublishWebsiteData"
+    actions   = ["s3:ListBucket", "s3:GetObject", "s3:PutObject"]
+    resources = [aws_s3_bucket.site.arn, "${aws_s3_bucket.site.arn}/data/*"]
+  }
+  statement {
     sid       = "DailySummaryEmail"
     actions   = ["sns:Publish"]
     resources = [aws_sns_topic.alerts.arn]
@@ -219,11 +224,13 @@ locals {
     # Executors cannot read the driver's /tmp: unzipped timetables are staged here for Spark.
     "--STATIC_STAGE_URI" = "s3://${aws_s3_bucket.work.bucket}/tmp/static/"
     "--ALERTS_TOPIC_ARN" = aws_sns_topic.alerts.arn
+    "--EXPORT_URI"       = "s3://${aws_s3_bucket.site.bucket}/data/v1/"
   }
   glue_jobs = {
     timetable_load = "Load new static GTFS versions from the archive into lake.dim (SCD2)"
     reconcile      = "Final trip outcomes for yesterday from the raw archive (backfill: --ARGS)"
     quality        = "Data-quality checks for yesterday into gold.data_quality, and the summary email"
+    export         = "Public JSON for the website (data/v1), only from days that passed the quality gates"
   }
 }
 
@@ -317,6 +324,23 @@ resource "aws_glue_trigger" "after_reconcile" {
   }
 }
 
+resource "aws_glue_trigger" "after_quality" {
+  name    = "ghostbus-after-quality"
+  type    = "CONDITIONAL"
+  enabled = var.batch_enabled
+
+  predicate {
+    conditions {
+      job_name = aws_glue_job.batch["quality"].name
+      state    = "SUCCEEDED"
+    }
+  }
+
+  actions {
+    job_name = aws_glue_job.batch["export"].name
+  }
+}
+
 # A failed nightly job emails the alerts topic.
 resource "aws_cloudwatch_event_rule" "glue_failed" {
   name        = "ghostbus-glue-failed"
@@ -402,4 +426,76 @@ output "table_bucket_arn" {
 
 output "glue_jobs" {
   value = [for j in aws_glue_job.batch : j.name]
+}
+
+# --- public website data (roadmap 2.1, ADR-0011) -----------------------------------------------------
+# Private: the website (roadmap 2.2) will serve it through CloudFront with origin access control.
+# Not versioned: everything here is rebuilt nightly from the lake.
+
+resource "aws_s3_bucket" "site" {
+  bucket = "ghostbus-site-${local.account}"
+}
+
+resource "aws_s3_bucket_public_access_block" "site" {
+  bucket                  = aws_s3_bucket.site.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_ownership_controls" "site" {
+  bucket = aws_s3_bucket.site.id
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "site" {
+  bucket = aws_s3_bucket.site.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "site" {
+  bucket = aws_s3_bucket.site.id
+  rule {
+    id     = "multipart"
+    status = "Enabled"
+    filter {}
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+}
+
+data "aws_iam_policy_document" "site_bucket" {
+  statement {
+    sid       = "DenyInsecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [aws_s3_bucket.site.arn, "${aws_s3_bucket.site.arn}/*"]
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "site" {
+  bucket = aws_s3_bucket.site.id
+  policy = data.aws_iam_policy_document.site_bucket.json
+}
+
+output "site_data_uri" {
+  value = "s3://${aws_s3_bucket.site.bucket}/data/v1/"
 }

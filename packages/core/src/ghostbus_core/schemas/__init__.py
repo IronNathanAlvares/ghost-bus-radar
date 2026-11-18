@@ -1,4 +1,5 @@
-"""JSON Schemas for every Kafka payload. Tests validate real normaliser output against them."""
+"""JSON Schemas for every Kafka payload and for the public export. Tests validate real output
+against them."""
 
 from __future__ import annotations
 
@@ -13,6 +14,14 @@ BY_TOPIC = {
     "ingest.heartbeat.v1": "heartbeat.v1.json",
 }
 DLQ = "dlq.v1.json"
+#: The public export contract (data/v1): document path pattern -> schema file
+EXPORT = {
+    "days/": "export_day.v1.json",
+    "league/": "export_league.v1.json",
+    "routes/": "export_route.v1.json",
+    "stops.json": "export_stops.v1.json",
+    "meta.json": "export_meta.v1.json",
+}
 
 
 def load(filename: str) -> dict[str, object]:

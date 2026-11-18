@@ -55,6 +55,9 @@ Sprint 4 added trip outcomes (`docs/03-ghost-definition.md`, ADR-0008):
     every day's trip instances (15 to 25 November). For local work, pull the archive first
     (`docs/05-aws-setup.md` section 5).
   - Diagrams for presenting the project: `docs/diagrams/README.md`.
+  - **Public data export** (ADR-0011): `ghostbus-export` runs after `ghostbus-quality` and writes
+    `s3://ghostbus-site-<account-id>/data/v1/` (meta, days, league, routes, stops). Only days that
+    passed the quality gates are counted; until one does, the league is empty by design.
   - **What's next:** `docs/06-roadmap.md`. Phase 0 is in progress: the code is on GitHub
     (`IronNathanAlvares/ghost-bus-radar`, public), and the archive guardrails and CloudTrail are live.
 - The field check needs a person at a bus stop.

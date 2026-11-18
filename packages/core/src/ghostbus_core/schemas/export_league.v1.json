@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ghostbus.league.v1",
+  "description": "Routes ranked worst first by the lower end of the untracked interval (at least 30 trips).",
+  "type": "object",
+  "required": [
+    "schema",
+    "attribution",
+    "window_days",
+    "from",
+    "to",
+    "days_published",
+    "min_trips_to_rank",
+    "routes",
+    "not_ranked"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ghostbus.league.v1"
+    },
+    "attribution": {
+      "$ref": "#/$defs/attribution"
+    },
+    "window_days": {
+      "enum": [
+        7,
+        28
+      ]
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "to": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "days_published": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    },
+    "min_trips_to_rank": {
+      "type": "integer"
+    },
+    "ranked_by": {
+      "type": "string"
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "agency",
+          "route",
+          "slug",
+          "trips_in_rates",
+          "ran",
+          "untracked",
+          "vanished",
+          "cancelled_early",
+          "cancelled_late"
+        ],
+        "properties": {
+          "agency": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "trips_in_rates": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ran": {
+            "$ref": "#/$defs/rate"
+          },
+          "untracked": {
+            "$ref": "#/$defs/rate"
+          },
+          "vanished": {
+            "$ref": "#/$defs/rate"
+          },
+          "cancelled_early": {
+            "$ref": "#/$defs/rate"
+          },
+          "cancelled_late": {
+            "$ref": "#/$defs/rate"
+          }
+        }
+      }
+    },
+    "not_ranked": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "agency",
+          "route",
+          "slug",
+          "trips_in_rates",
+          "ran",
+          "untracked",
+          "vanished",
+          "cancelled_early",
+          "cancelled_late"
+        ],
+        "properties": {
+          "agency": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "trips_in_rates": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ran": {
+            "$ref": "#/$defs/rate"
+          },
+          "untracked": {
+            "$ref": "#/$defs/rate"
+          },
+          "vanished": {
+            "$ref": "#/$defs/rate"
+          },
+          "cancelled_early": {
+            "$ref": "#/$defs/rate"
+          },
+          "cancelled_late": {
+            "$ref": "#/$defs/rate"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "rate": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "k",
+            "n",
+            "rate",
+            "lo",
+            "hi"
+          ],
+          "properties": {
+            "k": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "n": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "rate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "lo": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "hi": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      ]
+    },
+    "attribution": {
+      "type": "object",
+      "required": [
+        "source",
+        "source_url",
+        "licence",
+        "disclaimer"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "source_url": {
+          "type": "string"
+        },
+        "licence": {
+          "const": "CC BY 4.0"
+        },
+        "disclaimer": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

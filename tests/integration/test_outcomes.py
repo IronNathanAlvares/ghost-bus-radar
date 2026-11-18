@@ -333,3 +333,40 @@ def test_quality_gather_counts_the_synthetic_day_exactly(
     assert len(stored) == len(checks)
     assert {r["check_name"]: r["status"] for r in stored}["completeness"] == "fail"
     spark.sql(f"DROP TABLE IF EXISTS {table} PURGE")
+
+
+def test_export_end_to_end_on_the_synthetic_week(
+    result: tuple[SparkSession, Dim, dict[tuple[date, str], dict[str, object]]], tmp_path: Path
+) -> None:
+    """The nightly export against real Spark tables: a passed day is published, a failed one is
+    listed but excluded, every file matches its schema, and a rerun uploads nothing new."""
+    import jsonschema
+
+    from ghostbus_core import schemas
+    from ghostbus_core.quality import Check
+    from ghostbus_jobs.export import publish, run
+    from ghostbus_jobs.quality import write
+
+    spark, dim, _ = result
+    gold = f"{dim.ns}_gold.trip_outcomes"
+    qt = f"{dim.ns}_gold.data_quality"
+    write(spark, date(2026, 11, 12), [Check("completeness", 1.0, "ok", "all minutes")], table=qt)
+    write(
+        spark, date(2026, 11, 13), [Check("completeness", 0.2, "fail", "laptop asleep")], table=qt
+    )
+    site = LocalArchive(tmp_path / "site")
+    try:
+        docs = run(spark, date(2026, 11, 17), site, None, gold=gold, quality_table=qt, dim=dim)
+        assert docs["days/2026-11-12.json"]["published"] is True
+        assert docs["days/2026-11-13.json"]["published"] is False
+        assert docs["meta.json"]["latest_published_day"] == "2026-11-12"
+        codes = {s["code"] for s in docs["stops.json"]["stops"]}
+        assert {"101", "102", "103"} <= codes
+        for path, doc in docs.items():
+            name = next(v for k, v in schemas.EXPORT.items() if path.startswith(k))
+            jsonschema.validate(doc, schemas.load(name))
+        assert (tmp_path / "site" / "league" / "7d.json").exists()
+        written, unchanged = publish(site, docs)  # same documents again
+        assert (written, unchanged) == (0, len(docs))
+    finally:
+        spark.sql(f"DROP TABLE IF EXISTS {qt} PURGE")
