@@ -109,6 +109,11 @@ Re-check by 15 February 2027, or when Glue ships Spark 3.5.8.
 Kafka message-key argument. **False positive**, ignored by its exact fingerprint in
 `.gitleaksignore`.
 
+**checkov in CI vs on the laptop.** The first CI run failed `CKV_AWS_319` (alarm actions enabled)
+although the laptop passed: the laptop scan read the git-ignored `terraform.tfvars`
+(`collector_enabled = true`) and CI scanned the defaults. Skipped with the reason: alarm actions
+follow the collector they watch. Lesson: a scanner's verdict depends on the variable values it sees.
+
 **checkov.** 4 findings fixed (abort incomplete uploads on two buckets, versioning on the audit-log
 bucket, a Glue security configuration). 17 rules skipped, each with its reason in `.checkov.yaml`.
 They fall into three groups:

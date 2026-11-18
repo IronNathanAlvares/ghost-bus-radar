@@ -33,6 +33,9 @@ skip-check:
   - CKV2_AWS_62    # S3 event notifications: nothing consumes them
   - CKV2_AWS_10    # CloudTrail to CloudWatch Logs: tripwires use EventBridge instead, at no cost
   - CKV_AWS_252    # CloudTrail SNS topic: same reason
+  - CKV_AWS_319    # Alarm actions follow collector_enabled: an alarm on collection that is deliberately
+                   # off would fire forever. CI scans the default (off); the deployed value is on.
+                   # (Found because the laptop scan read terraform.tfvars and CI could not.)
   # Planned (roadmap 4.4)
   - CKV_AWS_272    # Lambda code signing: builds are reproducible and hash-checked today; AWS Signer
                    # is the next step
