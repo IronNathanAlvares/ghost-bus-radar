@@ -19,11 +19,14 @@ from pathlib import Path
 import pytest
 
 WEB = Path(__file__).resolve().parents[2] / "web"
+HEADERS_FILE = WEB.parent / "infra" / "site" / "security_headers.json"
+if not (WEB.is_dir() and HEADERS_FILE.is_file()):
+    # The Spark image used for the integration tests carries packages and tests only; pytest
+    # still imports every module there before selecting by marker.
+    pytest.skip("web/ and infra/site/ are not in this checkout", allow_module_level=True)
 PAGES = sorted(WEB.glob("*.html"))
 SCRIPTS = sorted((WEB / "assets").glob("*.js"))
-HEADERS = json.loads(
-    (WEB.parent / "infra" / "site" / "security_headers.json").read_text(encoding="utf-8")
-)
+HEADERS = json.loads(HEADERS_FILE.read_text(encoding="utf-8"))
 
 
 class Page(HTMLParser):
