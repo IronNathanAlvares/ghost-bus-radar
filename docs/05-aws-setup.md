@@ -126,3 +126,29 @@ aws s3 sync s3://$(terraform -chdir=infra/terraform/core output -raw archive_buc
 - **Destroy everything except the data:** the archive and state buckets have `prevent_destroy`,
   so `terraform destroy` in `core` stops before deleting the archive. That is deliberate. Removing
   the archive is a manual, separate decision.
+
+## 7. Credentials and guardrails
+
+**The CLI access key** (`nathan-admin`, created 17 November 2026) is a long-lived admin
+credential, and this account type cannot give that user console access or MFA. Treat it like a
+house key:
+
+- It lives only in `~/.aws/credentials`. Never in `.env`, the repository, chat or a synced folder.
+  The downloaded `*accessKeys*.csv` is git- and docker-ignored; delete it once the profile works.
+- **Rotate it every 90 days** (next: 15 February 2027): create a second key, update the profile
+  with `aws configure --profile ghostbus`, check `aws sts get-caller-identity`, then deactivate
+  and delete the old key in IAM.
+- If it may have leaked: delete it in IAM at once. The deployed system does not use it (the
+  Lambdas and Glue jobs have their own roles), so nothing in production breaks.
+- CloudTrail (`ghostbus-trail`) records every management call made with it, kept for a year.
+- Phase 4 of the roadmap replaces it for deploys with GitHub OIDC (no stored keys at all).
+
+**Guardrails on the data** (`infra/terraform/core/security.tf`):
+
+- Every bucket refuses plain-HTTP requests.
+- Nobody, admins included, can delete objects under `raw/` in the archive. Lifecycle rules still
+  work. Deleting raw data on purpose means removing the `DenyDeletingRawData` statement first, a
+  reviewed change that CloudTrail records.
+- Tested on 18 November 2026: a plain-HTTP list and an admin `DeleteObject` under `raw/` were both
+  refused, and collection carried on.
+

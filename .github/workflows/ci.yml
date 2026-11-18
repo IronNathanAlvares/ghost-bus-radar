@@ -39,6 +39,8 @@ jobs:
           enable-cache: true
       - name: Build the collector Lambda package (arm64 wheels)
         run: uv run python infra/lambda/build_collector.py
+      - name: Build the Glue job wheels and pinned modules
+        run: uv run python infra/glue/build_jobs.py
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.17.1"

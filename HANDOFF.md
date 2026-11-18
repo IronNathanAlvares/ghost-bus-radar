@@ -52,8 +52,8 @@ Sprint 4 added trip outcomes (`docs/03-ghost-definition.md`, ADR-0008):
     every day's trip instances (15 to 25 November). For local work, pull the archive first
     (`docs/05-aws-setup.md` section 5).
   - Diagrams for presenting the project: `docs/diagrams/README.md`.
-  - **What's next:** `docs/06-roadmap.md` (phased plan from the 18 November audit; awaiting the
-    owner's decisions before anything is built).
+  - **What's next:** `docs/06-roadmap.md`. Phase 0 is in progress: the code is on GitHub
+    (`IronNathanAlvares/ghost-bus-radar`, public), and the archive guardrails and CloudTrail are live.
 - The field check needs a person at a bus stop.
 - `reconcile` is still run by hand: after each collected day, run it for that day, then
   `lake_audit`.
@@ -198,6 +198,9 @@ ARCHIVE_URI=file:///C:/Users/<you>/ghostbus-archive uv run python -m ghostbus_in
 - **EventBridge Scheduler fires about 6 s into the minute** (15 s on the first run after enabling).
   The poller calls at :25 and skips its minute rather than call late. `collector_enabled = true`
   lives in the git-ignored `core/terraform.tfvars`, so a plain `terraform apply` keeps collection on.
+- **Nobody can delete from `raw/`** in the archive bucket, admins included (bucket policy); all
+  buckets refuse plain HTTP; CloudTrail `ghostbus-trail` logs management events for a year.
+  The CLI access key needs rotating every 90 days (`docs/05-aws-setup.md` section 7).
 - **NTA re-uploads the static GTFS zip every night** (about 23:10 to 23:30 UTC), with new bytes
   even when `feed_version` is unchanged. Archive identity is the SHA-256, so expect one archived
   version per day. **The label is not unique:** two uploads can share `feed_info.feed_version` and
