@@ -23,6 +23,12 @@ the expected cost and the effort. Steps marked **(you)** need the owner.
 
 ## Phase 0: Safeguard what exists (this week)
 
+**Status, 18 November:** 0.1 to 0.5 done. Code on GitHub (`IronNathanAlvares/ghost-bus-radar`) with CI
+green (unit 20 s, Terraform 44 s, Docker integration and chaos 11 min); bucket guardrails and
+CloudTrail live and tested; rotation documented (next 15 Feb 2027); both overdue measurements
+recorded, one of which found the issue now listed as 1.0. **0.6, the field check, is still open
+(owner).**
+
 | # | Step | Why | Done when | Cost | Effort |
 |---|---|---|---|---|---|
 | 0.1 | **First commit and a GitHub repository (you: name and visibility)** | One disk failure or OneDrive sync conflict from losing weeks of work; a portfolio needs a public history | `main` pushed, CI green on GitHub (checks, terraform, integration) | free | 1 h |
