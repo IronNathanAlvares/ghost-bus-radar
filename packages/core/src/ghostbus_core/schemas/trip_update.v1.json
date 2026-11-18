@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gtfsr.trip_updates.v1",
+  "description": "One GTFS-R TripUpdate entity. Absent optional protobuf fields are null, never 0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fetch_id",
+    "fetched_at_ms",
+    "feed_timestamp",
+    "entity_id",
+    "is_deleted",
+    "trip_key",
+    "trip",
+    "vehicle",
+    "timestamp",
+    "delay",
+    "stop_time_updates"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "fetch_id": {
+      "type": "string",
+      "pattern": "^[a-z_]+:[0-9]+$"
+    },
+    "fetched_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "feed_timestamp": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "is_deleted": {
+      "type": "boolean"
+    },
+    "trip_key": {
+      "type": "string"
+    },
+    "trip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trip_id",
+        "route_id",
+        "direction_id",
+        "start_time",
+        "start_date",
+        "schedule_relationship"
+      ],
+      "properties": {
+        "trip_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "route_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "direction_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "start_time": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9]{8}$"
+        },
+        "schedule_relationship": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "vehicle": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "label",
+            "license_plate"
+          ],
+          "properties": {
+            "id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "label": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "license_plate": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timestamp": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "delay": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "stop_time_updates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stop_sequence",
+          "stop_id",
+          "arrival",
+          "departure",
+          "schedule_relationship"
+        ],
+        "properties": {
+          "stop_sequence": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stop_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "arrival": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "delay",
+                  "time",
+                  "uncertainty"
+                ],
+                "properties": {
+                  "delay": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "time": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "uncertainty": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "departure": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "delay",
+                  "time",
+                  "uncertainty"
+                ],
+                "properties": {
+                  "delay": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "time": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "uncertainty": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schedule_relationship": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

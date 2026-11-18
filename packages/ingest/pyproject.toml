@@ -1,0 +1,19 @@
+[project]
+name = "ghostbus-ingest"
+version = "0.1.0"
+description = "Feed poller, static watcher and Kafka admin"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "ghostbus-core",
+    "boto3>=1.44",
+    "confluent-kafka>=2.11",
+    "httpx>=0.28,<1",
+    "zstandard>=0.25",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+ghostbus-core = { workspace = true }

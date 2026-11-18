@@ -1,0 +1,3 @@
+alert_email = "you@example.com"
+collector_enabled = false # true once the laptop poller is stopped (docs/05-aws-setup.md section 4)
+batch_enabled     = false # true once a manual Glue run has worked

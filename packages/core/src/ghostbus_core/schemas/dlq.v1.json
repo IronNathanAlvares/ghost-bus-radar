@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "*.dlq",
+  "description": "An entity that could not be normalised, with its raw protobuf bytes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fetch_id",
+    "fetched_at_ms",
+    "feed",
+    "entity_id",
+    "error",
+    "raw_b64"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "fetch_id": {
+      "type": "string",
+      "pattern": "^[a-z_]+:[0-9]+$"
+    },
+    "fetched_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "feed": {
+      "enum": [
+        "trip_updates",
+        "vehicles",
+        "alerts"
+      ]
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "error": {
+      "type": "string"
+    },
+    "raw_b64": {
+      "type": "string",
+      "contentEncoding": "base64"
+    }
+  }
+}

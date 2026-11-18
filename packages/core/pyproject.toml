@@ -1,0 +1,11 @@
+[project]
+name = "ghostbus-core"
+version = "0.1.0"
+description = "Pure, Spark-free logic shared by streaming, batch and API code"
+requires-python = ">=3.11,<3.12"
+# tzdata: Windows and slim images have no system zoneinfo; Europe/Dublin must always resolve.
+dependencies = ["gtfs-realtime-bindings>=3.0,<4", "tzdata>=2025.2"]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"

@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gtfsr.vehicle_positions.v1",
+  "description": "One GTFS-R VehiclePosition entity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fetch_id",
+    "fetched_at_ms",
+    "feed_timestamp",
+    "entity_id",
+    "is_deleted",
+    "trip_key",
+    "trip",
+    "vehicle",
+    "position",
+    "current_stop_sequence",
+    "stop_id",
+    "current_status",
+    "timestamp",
+    "congestion_level",
+    "occupancy_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "fetch_id": {
+      "type": "string",
+      "pattern": "^[a-z_]+:[0-9]+$"
+    },
+    "fetched_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "feed_timestamp": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "is_deleted": {
+      "type": "boolean"
+    },
+    "trip_key": {
+      "type": "string"
+    },
+    "trip": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "trip_id",
+            "route_id",
+            "direction_id",
+            "start_time",
+            "start_date",
+            "schedule_relationship"
+          ],
+          "properties": {
+            "trip_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "route_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "direction_id": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "start_time": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "start_date": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9]{8}$"
+            },
+            "schedule_relationship": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "vehicle": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "label",
+            "license_plate"
+          ],
+          "properties": {
+            "id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "label": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "license_plate": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "position": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "latitude",
+            "longitude",
+            "bearing",
+            "speed"
+          ],
+          "properties": {
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "bearing": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "speed": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "current_stop_sequence": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "stop_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "current_status": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "timestamp": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "congestion_level": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "occupancy_status": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

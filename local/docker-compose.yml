@@ -1,0 +1,202 @@
+# Local stack: a laptop-sized copy of the AWS data plane.
+#
+#   AWS                         local
+#   Amazon MSK (Kafka 4.x)  ->  apache/kafka, single node, KRaft
+#   S3 Tables REST catalog  ->  apache/iceberg-rest-fixture (same Iceberg REST protocol)
+#   S3                      ->  SeaweedFS S3 gateway
+#   EMR Serverless Spark    ->  ghostbus/spark image (Spark 3.5.6, Iceberg 1.10, like EMR 7.12)
+#
+#   docker compose -f local/docker-compose.yml up -d
+#   docker compose -f local/docker-compose.yml run --rm spark python -m ghostbus_jobs.smoke
+#   docker compose -f local/docker-compose.yml --profile collect up -d   # start collecting
+#   docker compose -f local/docker-compose.yml down        # add -v to wipe the lake
+#
+# Kafka keeps no volume on purpose: the raw archive is the source of truth (ADR-0001), so a fresh
+# broker is always recoverable. The archive is a host directory, GHOSTBUS_ARCHIVE_DIR (default
+# ~/ghostbus-archive), never a Docker volume, so `down -v` cannot delete collected history.
+# Credentials below are throwaway local values; the NTA key comes from the repo's .env.
+
+name: ghostbus
+
+x-local-aws: &local-aws
+  AWS_ACCESS_KEY_ID: local
+  AWS_SECRET_ACCESS_KEY: local
+  AWS_REGION: us-east-1
+
+services:
+  kafka:
+    image: apache/kafka:4.1.1
+    restart: unless-stopped  # the collector keeps publishing across Docker restarts
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:19092,HOST://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:19092,HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"  # topics come from ghostbus_core.topics only
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk  # any 22-char base64 UUID
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:19092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.51
+    command: server -dir=/data -s3 -s3.port=8333 -volume.max=0 -master.volumeSizeLimitMB=256
+    ports:
+      - "8333:8333"   # S3 API
+    volumes:
+      - seaweedfs:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status && wget -q -O /dev/null http://127.0.0.1:8333/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # One-shot: create the warehouse bucket. Succeeds if it already exists, so `up` is re-runnable.
+  bucket-init:
+    image: chrislusf/seaweedfs:4.51
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        echo 's3.bucket.create -name warehouse'
+        | weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888 2>&1 | tee /tmp/out;
+        grep -qE 'created bucket|already exists' /tmp/out
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+
+  iceberg-rest:
+    image: apache/iceberg-rest-fixture:1.10.0
+    ports:
+      - "8181:8181"
+    environment:
+      <<: *local-aws
+      CATALOG_WAREHOUSE: s3://warehouse/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://seaweedfs:8333
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      # Persist the catalog (SQLite) so tables survive container restarts and recreation. The
+      # volume is mounted on the image's iceberg home so it inherits that user's ownership.
+      CATALOG_URI: jdbc:sqlite:/home/iceberg/iceberg_catalog.db
+    volumes:
+      - catalog:/home/iceberg
+    depends_on:
+      bucket-init:
+        condition: service_completed_successfully
+
+  # Run on demand: docker compose -f local/docker-compose.yml run --rm spark <command>
+  spark:
+    build:
+      context: ..
+      dockerfile: local/spark/Dockerfile
+    image: ghostbus/spark:dev
+    profiles: ["tools"]
+    ports:
+      - "4040:4040"   # Spark UI of one-off jobs
+    environment:
+      <<: *local-aws
+      KAFKA_BOOTSTRAP: kafka:19092
+      LAKE_MODE: local
+      LAKE_REST_URI: http://iceberg-rest:8181
+      LAKE_S3_ENDPOINT: http://seaweedfs:8333
+      ARCHIVE_URI: file:///archive
+    volumes: &spark-volumes
+      # Read-only: batch jobs replay the raw archive, only the collector writes to it.
+      - ${GHOSTBUS_ARCHIVE_DIR:-~/ghostbus-archive}:/archive:ro
+      # Streaming checkpoints. They live and die with the lake (`down -v` wipes both together).
+      - checkpoints:/checkpoints
+    depends_on: &spark-depends
+      kafka:
+        condition: service_healthy
+      iceberg-rest:
+        condition: service_started
+
+  # The streaming pipeline (profile "stream"): Kafka -> bronze -> silver, running until stopped.
+  streamer:
+    image: ghostbus/spark:dev
+    profiles: ["stream"]
+    restart: unless-stopped
+    command: ["python", "-m", "ghostbus_jobs.stream", "--trigger", "30 seconds"]
+    environment:
+      <<: *local-aws
+      KAFKA_BOOTSTRAP: kafka:19092
+      LAKE_MODE: local
+      LAKE_REST_URI: http://iceberg-rest:8181
+      LAKE_S3_ENDPOINT: http://seaweedfs:8333
+      ARCHIVE_URI: file:///archive
+    volumes: *spark-volumes
+    ports:
+      - "4041:4040"   # Spark UI of the streaming app
+    depends_on: *spark-depends
+
+  # --- Collection (profile "collect"): runs until stopped, survives Docker restarts. ---
+
+  topics-init:
+    build: &ingest-build
+      context: ..
+      dockerfile: local/ingest/Dockerfile
+    image: ghostbus/ingest:dev
+    profiles: ["collect"]
+    command: ["python", "-m", "ghostbus_ingest.kafka_admin", "--bootstrap", "kafka:19092"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  poller:
+    build: *ingest-build
+    image: ghostbus/ingest:dev
+    profiles: ["collect"]
+    restart: unless-stopped
+    env_file:
+      - path: ../.env
+        required: false
+    environment: &collector-env
+      ARCHIVE_URI: file:///archive
+      KAFKA_BOOTSTRAP: kafka:19092
+    volumes: &archive-mount
+      - ${GHOSTBUS_ARCHIVE_DIR:-~/ghostbus-archive}:/archive
+    depends_on:
+      topics-init:
+        condition: service_completed_successfully
+
+  static-watcher:
+    build: *ingest-build
+    image: ghostbus/ingest:dev
+    profiles: ["collect"]
+    restart: unless-stopped
+    command: ["python", "-m", "ghostbus_ingest.static_watcher"]
+    environment: *collector-env
+    volumes: *archive-mount
+
+  # Provisional trip outcomes, decided from silver a few minutes after each trip closes.
+  trip-state:
+    image: ghostbus/spark:dev
+    profiles: ["stream"]
+    restart: unless-stopped
+    command: ["python", "-m", "ghostbus_jobs.trip_state"]
+    environment:
+      <<: *local-aws
+      # The default 1 GB driver ran out of memory at midnight, when two service days are open.
+      SPARK_DRIVER_MEMORY: 3g
+      LAKE_MODE: local
+      LAKE_REST_URI: http://iceberg-rest:8181
+      LAKE_S3_ENDPOINT: http://seaweedfs:8333
+    volumes: *spark-volumes
+    depends_on: *spark-depends
+
+volumes:
+  seaweedfs:
+  catalog:
+  checkpoints:

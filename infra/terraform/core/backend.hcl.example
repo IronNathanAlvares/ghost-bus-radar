@@ -1,0 +1,2 @@
+bucket = "ghostbus-tfstate-<account-id>"   # terraform -chdir=infra/terraform/bootstrap output -raw backend_hcl
+region = "eu-north-1"

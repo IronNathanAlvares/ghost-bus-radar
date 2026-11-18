@@ -1,0 +1,58 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# spark / local data
+spark-warehouse/
+checkpoints/
+local/data/
+metastore_db/
+derby.log
+
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl.bak
+
+# web
+node_modules/
+dist/
+.vercel/
+
+# os / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# static GTFS downloads (hundreds of MB; archived to S3 by the static watcher instead)
+GTFS_Realtime/
+*.zip
+
+# Field observations say where someone was and when
+field_check/observations-*.csv
+
+# terraform inputs that are account- or person-specific
+infra/terraform/**/backend.hcl
+*.tfvars
+!*.tfvars.example
+
+# AWS credential downloads (IAM "Download .csv"); keys belong in ~/.aws only
+*accessKeys*.csv
+*_credentials.csv
+credentials.csv
+
+# Third-party documents kept for reference only (link to the source instead of republishing)
+research/sources/*.pdf

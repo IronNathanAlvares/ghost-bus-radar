@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gtfsr.alerts.v1",
+  "description": "One GTFS-R Alert entity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fetch_id",
+    "fetched_at_ms",
+    "feed_timestamp",
+    "entity_id",
+    "is_deleted",
+    "active_periods",
+    "informed_entities",
+    "cause",
+    "effect",
+    "severity_level",
+    "url",
+    "header_text",
+    "description_text"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "fetch_id": {
+      "type": "string",
+      "pattern": "^[a-z_]+:[0-9]+$"
+    },
+    "fetched_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "feed_timestamp": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "is_deleted": {
+      "type": "boolean"
+    },
+    "active_periods": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end"
+        ],
+        "properties": {
+          "start": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "end": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "informed_entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agency_id",
+          "route_id",
+          "route_type",
+          "direction_id",
+          "trip",
+          "stop_id"
+        ],
+        "properties": {
+          "agency_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route_type": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "direction_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "trip": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "trip_id",
+                  "route_id",
+                  "direction_id",
+                  "start_time",
+                  "start_date",
+                  "schedule_relationship"
+                ],
+                "properties": {
+                  "trip_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "route_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "direction_id": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "start_time": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "start_date": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[0-9]{8}$"
+                  },
+                  "schedule_relationship": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stop_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "cause": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "effect": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "severity_level": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "url": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "language",
+          "text"
+        ],
+        "properties": {
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "header_text": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "language",
+          "text"
+        ],
+        "properties": {
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "description_text": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "language",
+          "text"
+        ],
+        "properties": {
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+GTFS_Realtime
+research
+docs
+web
+infra
+*.zip
+.env
+
+# AWS credential downloads never go into an image
+**/*accessKeys*.csv
+**/*credentials*.csv

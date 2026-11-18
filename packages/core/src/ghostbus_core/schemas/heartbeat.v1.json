@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ingest.heartbeat.v1",
+  "description": "One per API call. Gaps in collected heartbeats become NO_DATA outcomes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fetch_id",
+    "feed",
+    "fetched_at_ms",
+    "status",
+    "http_status",
+    "elapsed_ms",
+    "bytes",
+    "feed_timestamp",
+    "entity_count",
+    "records",
+    "entity_errors",
+    "archive_key",
+    "archived",
+    "kafka_delivered",
+    "kafka_unconfirmed",
+    "error",
+    "retry_after_s",
+    "collected"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "fetch_id": {
+      "type": "string",
+      "pattern": "^[a-z_]+:[0-9]+$"
+    },
+    "feed": {
+      "enum": [
+        "trip_updates",
+        "vehicles",
+        "alerts"
+      ]
+    },
+    "fetched_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "throttled",
+        "client_error",
+        "server_error",
+        "network_error",
+        "bad_payload"
+      ]
+    },
+    "http_status": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "elapsed_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "feed_timestamp": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "entity_count": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "records": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "entity_errors": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "archive_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "archived": {
+      "type": "boolean"
+    },
+    "kafka_delivered": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kafka_unconfirmed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retry_after_s": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "collected": {
+      "type": "boolean"
+    }
+  }
+}
