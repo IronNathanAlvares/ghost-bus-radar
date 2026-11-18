@@ -20,14 +20,17 @@ front of the private site bucket and the API.
 
 ## 2. Lighthouse
 
-Mobile, simulated slow 4G, Lighthouse 12. Second run, after the fixes below:
+Mobile, simulated slow 4G, Lighthouse 12.8.2 on a clean GitHub runner
+(`.github/workflows/lighthouse.yml`, 18 November 2026, after the fixes below). Target: 90.
 
-| Page | Performance | Accessibility | Best practices | SEO |
-|---|---|---|---|---|
-| Home | (see below) | 100 | 100 | 100 |
-| Route | (see below) | 100 | 100 | 100 |
-| Stop | (see below) | 100 | 100 | 100 |
-| Methodology | (see below) | 100 | 100 | 100 |
+| Page | Performance | Accessibility | Best practices | SEO | First paint | Largest paint | Layout shift |
+|---|---|---|---|---|---|---|---|
+| Home | **100** | 100 | 100 | 100 | 1.1 s | 1.2 s | 0 |
+| Route | **99** | 100 | 100 | 100 | 1.2 s | 1.2 s | 0.057 |
+| Stop (live board) | **100** | 100 | 100 | 100 | 1.3 s | 1.3 s | 0 |
+| Methodology | **100** | 100 | 100 | 100 | 1.0 s | 1.0 s | 0 |
+
+**Met on every page.**
 
 **Fixed after the first run:**
 
@@ -39,14 +42,15 @@ Mobile, simulated slow 4G, Lighthouse 12. Second run, after the fixes below:
 - *Layout shift:* content arriving after load (the departures board, the charts) pushed the footer
   up the screen: CLS 0.176 on the stop page. The main area is now at least one screen tall.
 
-**Performance could not be measured on this laptop.** The trace shows antivirus HTTPS inspection
+**Why the numbers come from a runner, not the laptop.** On the laptop the same pages scored 41 to
+80 for performance. The trace shows antivirus HTTPS inspection
 on every request: a 172 KB script injected into each page (render-blocking), the HTML arriving
 after 1.8 s and uncompressed although CloudFront serves it brotli-compressed to `curl`. The clearest
 sign: the methodology page, which runs none of the site's JavaScript, scored 41 with "total
 blocking time" from the injected script. These numbers measure the antivirus, not the site.
 
-The clean measurement runs on a GitHub runner (`.github/workflows/lighthouse.yml`, started by hand
-with the site URL, which is not stored in the repository); its results belong in this table.
+The workflow is started by hand with the site URL (not stored in the repository) and fails if any
+score drops below 90.
 
 ## 3. Weight
 
