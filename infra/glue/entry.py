@@ -9,6 +9,7 @@ Glue runs one script per job; this one dispatches to the same ``main()`` the lap
     --TASK export                    public JSON for the website (or --ARGS "--to D")
     --TASK api_index                 stop index for the API: today, tomorrow (--ARGS "--date D")
     --TASK calibration               backtest of the API probability (--ARGS "--from D --to D")
+    --TASK accuracy                  countdowns vs actual arrivals (--ARGS "--from D --to D")
 
 Job parameters set the environment the jobs read (``LAKE_MODE``, ``LAKE_TABLE_BUCKET_ARN``,
 ``AWS_REGION``, ``ARCHIVE_URI``), so the code has no Glue-specific branches. Glue adds its own
@@ -30,6 +31,7 @@ TASKS = {
     "export": "ghostbus_jobs.export",
     "api_index": "ghostbus_jobs.api_index",
     "calibration": "ghostbus_jobs.calibration",
+    "accuracy": "ghostbus_jobs.accuracy",
 }
 ENV_ARGS = (
     "LAKE_MODE",

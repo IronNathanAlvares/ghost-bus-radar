@@ -212,6 +212,15 @@ ul.results .code { color: var(--muted); font-variant-numeric: tabular-nums; marg
 .chart .dot { fill: var(--bar); stroke: var(--surface); stroke-width: 2; cursor: default; }
 .chart .dot:hover, .chart .dot:focus { fill: var(--whisker); }
 .reliability-figure { margin: 12px 0; max-width: 420px; }
+.accuracy-figure { margin: 12px 0; }
+.chart .range { stroke-width: 3; stroke-linecap: round; }
+.series-realtime .dot { fill: var(--bar); }
+.series-realtime .range { stroke: var(--bar); opacity: 0.45; }
+.series-timetable .dot { fill: var(--muted); }
+.series-timetable .range { stroke: var(--muted); opacity: 0.45; }
+.legend .sw.realtime { background: var(--bar); border-radius: 50%; width: 11px; height: 11px; }
+.legend .sw.timetable { background: var(--muted); border-radius: 50%; width: 11px; height: 11px; }
+#accuracy { min-height: 320px; }
 
 /* --- tooltip --- */
 .tip {

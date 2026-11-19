@@ -138,6 +138,17 @@
       is honest, about 80% of the buses given 80% really ran.</p>
     <div id="calibration-results"><p class="muted">Loading the latest results…</p></div>
 
+    <h2 id="accuracy">How accurate is the countdown?</h2>
+    <p>Every two minutes we record what the live feed predicts for each bus at each stop it has not
+      reached yet: the time a board or app turns into "5 min". Afterwards we work out when the bus
+      really reached each stop from its positions: each position is placed along the route, and
+      the moment it passed the stop is taken between the two positions either side of it, only if
+      they were at most 4 minutes apart. The first stop of a trip is left out: buses wait there.</p>
+    <p>The error is the actual time minus the predicted one (positive: later than the board said),
+      grouped by how far ahead the prediction was. The timetable's error at the same moments is
+      shown alongside. Intervals count each bus trip once, because one late bus is late at every
+      stop, so its predictions are not independent.</p>
+
     <h2 id="limits">What the numbers can't tell you</h2>
     <ul>
       <li>"Untracked" means the live feed never saw the bus. A bus with a broken tracker that ran on time

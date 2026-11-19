@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 from google.transit import gtfs_realtime_pb2 as pb
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 
 from ghostbus_core.archive_layout import fetch_id
 from ghostbus_core.feeds import Feed
@@ -470,5 +471,69 @@ def test_calibration_backtest_replays_the_live_status_at_each_lead(
         # Rerunning the day replaces its rows instead of adding to them.
         run(spark, [date(2026, 11, 16)], None, lambda _day: src, gold, table, dim)
         assert spark.table(table).count() == 8
+    finally:
+        spark.sql(f"DROP TABLE IF EXISTS {table} PURGE")
+
+
+def test_prediction_accuracy_against_reconstructed_arrivals(
+    result: tuple[SparkSession, Dim, dict[tuple[date, str], dict[str, object]]], tmp_path: Path
+) -> None:
+    """Prediction accuracy (ADR-0016) on a hand-made trip: 46A on Thu 12 Nov (S1 08:00, S2 08:20,
+    S3 08:40), which ran. Every TripUpdates snapshot from 07:50 says "4 minutes early" at stop 1,
+    carried forward; positions every 2 minutes put the bus at S2 from 08:16:40 to 08:34:40 and at
+    S3 from 08:36:40, so it reached S2 at 08:16:40 and S3 at 08:36:40 (arrival, not departure,
+    although it dwells at S2 for 18 minutes). The board said 08:16 and 08:36: the bus came 40 s
+    later than shown at both, and 3 min 20 s earlier than the timetable."""
+    import jsonschema
+
+    from ghostbus_core import schemas
+    from ghostbus_jobs.accuracy import run
+
+    spark, dim, _ = result
+    gold = f"{dim.ns}_gold.trip_outcomes"
+    table = f"{dim.ns}_gold.prediction_accuracy"
+    day = date(2026, 11, 12)
+    feeds = Feeds()
+    t = at(day, "07:50")
+    while t <= at(day, "08:45"):
+        e = pb.FeedEntity(id="T1")
+        d = e.trip_update.trip
+        d.trip_id, d.start_date = "v1_0", f"{day:%Y%m%d}"
+        d.schedule_relationship = pb.TripDescriptor.SCHEDULED
+        e.trip_update.vehicle.id = "4242"
+        u = e.trip_update.stop_time_update.add()
+        u.stop_sequence, u.stop_id = 1, "S1"
+        u.departure.delay = -240
+        feeds.poll(Feed.TRIP_UPDATES, t, [e])
+        stop = "S1" if t < at(day, "08:15") else "S2" if t < at(day, "08:35") else "S3"
+        feeds.poll(
+            Feed.VEHICLES,
+            t + timedelta(seconds=60),
+            [vp_entity("v1_0", day, stop, t + timedelta(seconds=40))],
+        )
+        t += timedelta(minutes=2)
+    raw = spark.createDataFrame(feeds.rows, "topic STRING, value STRING")
+    src = Sources(
+        trip_updates_frame(raw, CFG),
+        vehicle_positions_frame(raw, CFG),
+        heartbeats_frame(raw, CFG),
+        "test",
+    )
+    site = LocalArchive(tmp_path / "site")
+    try:
+        doc = run(spark, [day], site, lambda _day: src, gold, table, dim)
+        jsonschema.validate(doc, schemas.load(schemas.EXPORT["accuracy.json"]))
+        rows = [r for r in doc["by_lead"] if r["predictions"]]
+        assert rows, "no predictions were scored"
+        summary = [(r["lead_min"], r["median_min"], r["mean_min"]) for r in rows]
+        assert all(r["median_min"] == pytest.approx(0.75, abs=0.01) for r in rows), summary
+        assert all(r["mean_min"] == pytest.approx(40 / 60, abs=0.01) for r in rows)
+        assert all(r["timetable"]["mae_min"] == pytest.approx(200 / 60, abs=0.01) for r in rows)
+        assert {r["trips"] for r in rows} == {1}
+        assert doc["stops_timed_share"] == 1.0  # S2 and S3 (the first stop is never timed)
+        assert doc["by_operator"][0]["agency"] == "Dublin Bus"
+        assert (tmp_path / "site" / "accuracy.json").exists()
+        run(spark, [day], None, lambda _day: src, gold, table, dim)  # rerun replaces the day
+        assert spark.table(table).where(F.col("service_date") == F.lit(day)).count() == len(rows)
     finally:
         spark.sql(f"DROP TABLE IF EXISTS {table} PURGE")

@@ -245,6 +245,7 @@ locals {
     export         = "Public JSON for the website (data/v1), only from days that passed the quality gates"
     api_index      = "Stop index for the API: every bus departure today and tomorrow, 256 shards (ADR-0012)"
     calibration    = "Walk-forward backtest of the API probability: Brier score and reliability (ADR-0014)"
+    accuracy       = "Real-time countdowns vs reconstructed arrival times, by lead time and operator (ADR-0016)"
   }
 }
 
@@ -345,6 +346,11 @@ resource "aws_glue_trigger" "after_reconcile" {
   # In parallel with quality: the backtest needs yesterday's final outcomes, nothing more.
   actions {
     job_name = aws_glue_job.batch["calibration"].name
+  }
+
+  # Likewise prediction accuracy (ADR-0016): yesterday's trips that ran, and the archive.
+  actions {
+    job_name = aws_glue_job.batch["accuracy"].name
   }
 }
 

@@ -1,3 +1,4 @@
+import { renderAccuracy } from "./accuracy.js";
 import { DATA, dayLabel, fail, getJSON, h, methodology, pct, qualityBadge, rateParts, stamp, wilson } from "./common.js";
 
 const SHOW = 25;
@@ -12,6 +13,9 @@ async function main() {
   }
   document.getElementById("updated").textContent = `Updated ${stamp(meta.generated_at)}. Rules version ${meta.params_version}.`;
   renderDays(meta);
+  getJSON(`${DATA}accuracy.json`)
+    .then((doc) => renderAccuracy(document.getElementById("accuracy"), doc))
+    .catch(() => fail(document.getElementById("accuracy"), "The accuracy figures are not available yet."));
   const leagues = {};
   const load = async (n) => (leagues[n] ||= await getJSON(`${DATA}league/${n}d.json`));
   try {

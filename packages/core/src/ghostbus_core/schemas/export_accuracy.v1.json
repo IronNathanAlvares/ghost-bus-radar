@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ghostbus.accuracy.v1",
+  "description": "data/v1/accuracy.json: how far real-time countdowns were from when buses actually arrived, by lead time and operator, with the timetable alongside (ADR-0016).",
+  "type": "object",
+  "required": [
+    "schema",
+    "attribution",
+    "generated_at",
+    "days",
+    "stops_timed_share",
+    "error_is",
+    "by_lead",
+    "by_operator"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ghostbus.accuracy.v1"
+    },
+    "attribution": {
+      "$ref": "#/$defs/attribution"
+    },
+    "generated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      }
+    },
+    "stops_timed_share": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "error_is": {
+      "type": "string"
+    },
+    "by_lead": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    },
+    "by_operator": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "agency",
+          "by_lead"
+        ],
+        "properties": {
+          "agency": {
+            "type": "string"
+          },
+          "by_lead": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/row"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "attribution": {
+      "type": "object",
+      "required": [
+        "source",
+        "source_url",
+        "licence",
+        "disclaimer"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "source_url": {
+          "type": "string"
+        },
+        "licence": {
+          "const": "CC BY 4.0"
+        },
+        "disclaimer": {
+          "type": "string"
+        }
+      }
+    },
+    "row": {
+      "type": "object",
+      "required": [
+        "lead_min",
+        "predictions",
+        "trips"
+      ],
+      "properties": {
+        "lead_min": {
+          "enum": [
+            "0-2",
+            "2-5",
+            "5-10",
+            "10-15",
+            "15-20",
+            "20-30"
+          ]
+        },
+        "predictions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trips": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "median_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p10_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p90_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mean_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mae_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "within_1_min": {
+          "type": "object",
+          "required": [
+            "share",
+            "lo",
+            "hi"
+          ],
+          "properties": {
+            "share": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "lo": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "hi": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "within_2_min": {
+          "type": "object",
+          "required": [
+            "share",
+            "lo",
+            "hi"
+          ],
+          "properties": {
+            "share": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "lo": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "hi": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "timetable": {
+          "type": "object",
+          "properties": {
+            "median_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "p10_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "p90_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "mae_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "within_2_min": {
+              "type": "object",
+              "required": [
+                "share",
+                "lo",
+                "hi"
+              ],
+              "properties": {
+                "share": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "lo": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "hi": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

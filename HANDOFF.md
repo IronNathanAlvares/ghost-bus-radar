@@ -73,6 +73,10 @@ Sprint 4 added trip outcomes (`docs/03-ghost-definition.md`, ADR-0008):
   - **Model heuristic-v2** (ADR-0015): `ghostbus_core.model`; the export writes `data/v1/model.json`
     (fitted on published days); the API uses it when present, else v1. The backtest stores v1's
     answer in `probability_v1` beside v2's for the comparison. How v2 was chosen: measurement 09.
+  - **Countdown accuracy** (ADR-0016): `ghostbus-accuracy` runs after `reconcile` (with `quality`
+    and `calibration`), reconstructs arrivals from positions, stores mergeable summaries in
+    `gold.prediction_accuracy` and publishes `data/v1/accuracy.json` (home page chart). Backfill:
+    `--ARGS "--from D --to D"`; about 3 minutes a day.
   - **What's next:** `docs/06-roadmap.md`. Phase 0 is in progress: the code is on GitHub
     (`IronNathanAlvares/ghost-bus-radar`, public), and the archive guardrails and CloudTrail are live.
 - The field check needs a person at a bus stop.

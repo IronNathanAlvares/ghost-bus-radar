@@ -230,6 +230,46 @@ flowchart TB
   Fixing the structure first made the calibration error almost vanish; a Platt layer stays in
   reserve if a steady tilt shows up in the nightly backtest.
 
+## 6.1f How accurate is the countdown?
+
+**Say it in one breath:** every night a job takes yesterday's archived predictions (what boards
+showed) and the buses' positions, works out when each bus really reached each stop, and measures
+how far off the countdown was, by how far ahead it was given, next to the timetable.
+
+```mermaid
+flowchart TB
+    VP[("archived positions<br/>own timestamps")] --> PR["place each fix along the<br/>chain of the trip's stops"]
+    PR --> PA["passage time per stop:<br/>between fixes ≤ 4 min apart"]
+    TU[("archived TripUpdates<br/>every 2 minutes")] --> PD["the board's time per stop:<br/>own update, or last delay carried on"]
+    PA --> E["error = actual − predicted<br/>by lead time and operator"]
+    PD --> E
+    TT[("timetable")] --> E
+    E --> A["mergeable summaries<br/>(counts, sums, 30-s histograms)"]
+    A --> G[("gold.prediction_accuracy")]
+    G --> J["data/v1/accuracy.json<br/>home page chart"]
+```
+
+**Interviewer asks**
+- *There's no "arrived at stop" field. How do you know when a bus arrived?* Geometry: each position
+  is projected onto the route, searching forward from the last match so a route that doubles back
+  isn't confused, and the arrival is interpolated between the two positions either side of the
+  stop, only if they're at most four minutes apart. A property test shows the error never exceeds
+  the sampling gap.
+- *5.8 million predictions: how do you aggregate without moving them all?* Each trip is processed on
+  the executors by a pure Python function; it returns small summaries (counts, sums, a 30-second
+  error histogram) that merge by addition. Medians and percentiles over any window come from merged
+  histograms, so a month is as cheap as a day.
+- *Are 5.8 million predictions really 5.8 million data points?* No: one late bus is late at every
+  stop. The intervals use the number of trips (about 12,000) as the sample size, which is the
+  honest, conservative choice.
+- *What did it find?* The countdown beats the timetable everywhere (88% within 2 minutes when it says
+  "due", the timetable a third), but it's optimistic and more so further out: buses come about 1
+  minute later than shown at 0–2 minutes, 2.4 at 20–30.
+- *Tell me about a bug the tests caught.* A bus waiting at a stop was timed when it left, not when it
+  arrived: a float rounding in the last digit put positions exactly at the stop a hair short of it.
+  The integration test's synthetic dwell was 18 minutes off; a metre of slack fixed it, and a unit
+  test on a diagonal route (where the rounding shows) keeps it fixed.
+
 ## 6.2 Who may do what (least privilege)
 
 **Say it in one breath:** every component has its own IAM role with only the actions it needs on

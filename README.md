@@ -15,7 +15,9 @@ days that passed the quality gates (ADR-0011), and a **"will my bus come?" API**
 archive without streaming at a gateway p95 of 323 ms (ADR-0012,
 [measurement 06](docs/measurements/06-api.md)), and a **website** on CloudFront with the league table,
 route pages, live departures at your stop and a methodology page (ADR-0013). The chance shown is
-backtested every night on days it never saw ([measurement 08](docs/measurements/08-calibration.md)). How it all works, as diagrams:
+backtested every night on days it never saw ([measurement 08](docs/measurements/08-calibration.md)),
+and the NTA's own countdowns are checked against when buses really arrived: 88% within 2 minutes
+when the board says "due", 44% at 20-30 minutes ([measurement 10](docs/measurements/10-prediction-accuracy.md)). How it all works, as diagrams:
 [`docs/diagrams/`](docs/diagrams/README.md). See [`PLAN.md`](PLAN.md) for the design,
 [`SPRINTS.md`](SPRINTS.md) for progress, [`HANDOFF.md`](HANDOFF.md) to pick it up cold.
 Research and sources: [`docs/01-research.md`](docs/01-research.md). Decisions: [`docs/adr/`](docs/adr/).
